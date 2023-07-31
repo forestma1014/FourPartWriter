@@ -4,119 +4,123 @@
 
 import copy
 import random
+from music import *
 
-#returns a list of all the notes in a major or minor scale, first index being None
-#to conform to scale degree conventions
-def getScale(tonic, mode):
+###===========================================
+###    STARTING POINT: genHarmonyRecursive
+###===========================================
+#recursively calculates roman numeral analysis and part writing simultaneously,
+#backtracking if their invalidities in either the RN analysis or the part writing
+#starting from the cadence (right to left)
+def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length):
+    
+    if melody == []:
+        print('done:',parts)
+        return parts
 
-    CMajor = [('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7), ('A', 9), ('B', 11)] 
-                    #second part of tuple is distance in half step to next note
-    CMinor = [('C', 0), ('D', 2), ('E', 3), ('F', 5), ('G', 7), ('A', 8), ('B', 10)]     
+    note = melody[-1]
 
-    if mode == "major":
-        CScale = CMajor
+    if curNumerals == []:
+        prio = getCadenceNumeral(tonic, mode, note, [])
+
+    elif len(curNumerals) == length - 1:
+
+        prio = getCadenceNumeral(tonic, mode, note, getPriorityList(curNumerals[-1], mode))
+        print('cadNum:', prio)
     else:
-        CScale = CMinor
-    
-    #Derive scales based off above scales in C
-    scaleArray = [['_',  0],['_',  0],['_',  0],['_',  0],['_',  0],['_',  0],['_',  0]]
-    scaleArray[0] = tonic.copy()
-    notes = ['C','D','E','F','G','A','B']
-    offset = notes.index(tonic[0])
+        prio = getPriorityList(curNumerals[-1], mode)
+    originalPrio = copy.deepcopy(prio)
 
-    for i in range(0, 7):
-        if i + offset >= 7:
-            curNote = notes[(i + offset)%7]
+    i = 0
+    term = len(prio)
+    while i < term:
+        if not isGoodProgression(curNumerals, prio[i], melody):
+            prio.append(prio.pop(i))
+            term -= 1
         else:
-            curNote = notes[i + offset]
+            i += 1
+    for i in range(len(prio)):
+        originalNumerals = copy.deepcopy(curNumerals)
+        originalParts = copy.deepcopy(parts)
+        originalVoicings = copy.deepcopy(allPossibleVoicings)
+        #check if numeral is possible given note
+        print(prio[i])
+        if note[:-1] in chordFromNumeral(tonic, mode, prio[i]):
+            print(note[:-1], 'fits in ', prio[i])
+            curNumerals.append(prio[i]) #add to cur
+            print('NUMERALS:',curNumerals[::-1])
 
-        #first set the note
-        scaleArray[i][0] = curNote
+        else:
+            print('continuing:', note[:-1], 'doesnt fit in ', prio[i])
+            continue #go next in priority list if current numeral not possible
 
-        #then set the accidental
-        #half steps of the natural note from tonic
-        curHalfStepsFromTonic = CMajor[notes.index(curNote)][1] - (CMajor[offset][1] + tonic[1])
+        #chord is available/possible at this point, already added to current
+        #check for imperfections with isGoodProgression, or just proceed if
+        #i is last in the priority list
+        #generateVoices generates the other three parts and returns true
+        #if there is a solution to the part writing - if false, this
+        #call of the function returns None
+        if voiceLeadingPossible(tonic, mode, parts, curNumerals, melody, allPossibleVoicings, lvMaxIntApart, length):
+            solution = genHarmonyRecursive(melody[:-1], tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length)
 
-        if curHalfStepsFromTonic < 0:
-            curHalfStepsFromTonic += 12 
+            if solution != None:  
+                return solution
+        else:
+            #print(allPossibleVoicings[-1],'---',parts)
+            print('vl not possible')
 
-        #half steps from desired note to tonic
-        desiredHalfStepsFromTonic = CScale[i][1]
-        scaleArray[i][1] = desiredHalfStepsFromTonic - curHalfStepsFromTonic
 
-        #edge cases
-        if mode == "major" and scaleArray[i][1] < 0 and (i == 0 or i == 6) and tonic[1] != -1:
-            scaleArray[i][1] += 12
-        if mode == "minor" and scaleArray[i][1] >=10 and i == 6 and tonic[1] == -1:
-            scaleArray[i][1] -= 12
-        if mode == "minor" and scaleArray[i][1] < 0 and i == 0 and tonic[1] == 1:
-            scaleArray[i][1] += 12
+        curNumerals = copy.deepcopy(originalNumerals)
+        parts = copy.deepcopy(originalParts)
+        prio = copy.deepcopy(originalPrio)
+        allPossibleVoicings = copy.deepcopy(originalVoicings)
+        
+        print('------------\n','preserve original numerals:', curNumerals[::-1],'\nPARTS:',parts[::-1],'\n------------') 
+    return None
 
+# ====================================================#
+
+###===========================================
+###    voiceLeadingPossible + all helpers
+###===========================================
+#generates VL possibilities, returns false if there is no possible solution
+#in which case the algorithm backtracks
+#soprano is the melody note
+def voiceLeadingPossible(tonic, mode, parts, numerals, melody, allPossibleVoicings, lvMaxIntApart, length):
     
-    scaleArray.insert(0, None) #offset by 1 index to notation conventions (1 is unison)
-    return scaleArray
+    numeral = copy.copy(numerals[-1])
+    chord = chordFromNumeral(tonic, mode, numeral)
+    soprano = copy.copy(melody[-1])
     
-def degreesToNotes(part, tonic, mode):
+    #generate all the possible voicings for each individual chord
+    #push them onto a 3D list indexed by chords from right to left (0 is last chord),
+    #each element of the list being a list of possible voicings (chordal format)
+    #at the end, run a function that chooses one voicing from each list of possible voicings,
+    #with attention to voice leading rules as well as conventions and idioms.
+    #if no solution exists to satisfy voice leading rules, this function returns false
 
-    for i in range(len(part)):
+    allPossibleVoicings.append(getPossibleVoicings(tonic, mode, numerals, soprano, parts))
 
-        note = getScale(tonic, mode)[part[i][0]]
-        note[1] += part[i][1] #accidentals
-        part[i] = note
-    return part
+    #reduce first set of voicings to valid cadences
+    if len(allPossibleVoicings) < 2:
+        siftVoicings(tonic, mode, allPossibleVoicings[0], chord, numeral, parts)
+        cadences = getCadences(tonic, mode, allPossibleVoicings[0], numeral)
+        print('CADENCES: ', cadences)
+        allPossibleVoicings[0] = copy.deepcopy(cadences)
+        
+        parts.append(cadences[0])
+        return True
+    #checks if the newest set of possible voicings allows for legal voice leading
+    if len(allPossibleVoicings) == length:
+        cadences = getCadences(tonic, mode, allPossibleVoicings[-1], numeral)
+        print('cad',cadences)
+        allPossibleVoicings[-1] = copy.deepcopy(cadences)
+    solution = getVLPath(tonic, mode, numerals, copy.deepcopy(parts), copy.deepcopy(allPossibleVoicings), len(parts), lvMaxIntApart)
+    if solution == None: return False
+    copyList(parts, solution)
+    print('PARTS:', parts[::-1])
+    return True
     
-
-def notesToDegrees(part, tonic, mode):
-
-    notes = ['C','D','E','F','G','A','B']
-    scale = getScale(tonic, mode)
-    for i in range(len(part)):
-        degree = [0,0]
-        degree[0] = notes.index(part[i][0]) - notes.index(tonic[0]) + 1
-        if degree[0] <= 0:
-            degree[0] += 7 
-
-        #accidental
-        degree[1] = part[i][1] - scale[degree[0]][1] 
-        part[i] = degree
-    return part
-
-#returns 1 if n1 < n2, 0 if equal, -1 if n2 > n1
-def compareNotes(n1, n2):
-
-    #return none if notes do not have register
-    if len(n1) == 2 or len(n2) == 2:
-        return None
-    #compare register
-    if n1[2] > n2[2]:
-        return 1
-    if n2[2] > n1[2]:
-        return -1
-
-    #compare notes
-    scale = ['C','D','E','F','G','A','B']
-    if scale.index(n1[0]) > scale.index(n2[0]):
-        return 1
-    if scale.index(n2[0]) > scale.index(n1[0]):
-        return -1
-
-    #compare accidental
-    if n1[1] > n2[1]:
-        return 1
-    if n2[1] > n1[1]:
-        return -1
-    
-    return 0
-#flatten or sharpen note by count
-def flatten(note, count):
-    new = note.copy()
-    new[1] -= count
-    return new
-def sharpen(note, count):
-    new = note.copy()
-    new[1] += count
-    return new
-
 #returns an array of notes (no register) pertaining to an input chord
 #output format: [['A', 0],['C', 0],['E', 0]]
 def chordFromNumeral(tonic, mode, numeral):
@@ -258,130 +262,6 @@ def getCadenceNumeral(tonic, mode, note, available):
                 return [numeral]
     
     return []
-#recursively calculates roman numeral analysis and part writing simultaneously,
-#backtracking if their invalidities in either the RN analysis or the part writing
-#starting from the cadence (right to left)
-def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length):
-    
-    if melody == []:
-        print('done:',parts)
-        return parts
-
-    note = melody[-1]
-
-    if curNumerals == []:
-        prio = getCadenceNumeral(tonic, mode, note, [])
-
-    elif len(curNumerals) == length - 1:
-
-        prio = getCadenceNumeral(tonic, mode, note, getPriorityList(curNumerals[-1], mode))
-        print('cadNum:', prio)
-    else:
-        prio = getPriorityList(curNumerals[-1], mode)
-    originalPrio = copy.deepcopy(prio)
-
-    i = 0
-    term = len(prio)
-    while i < term:
-        if not isGoodProgression(curNumerals, prio[i], melody):
-            prio.append(prio.pop(i))
-            term -= 1
-        else:
-            i += 1
-    for i in range(len(prio)):
-        originalNumerals = copy.deepcopy(curNumerals)
-        originalParts = copy.deepcopy(parts)
-        originalVoicings = copy.deepcopy(allPossibleVoicings)
-        #check if numeral is possible given note
-        print(prio[i])
-        if note[:-1] in chordFromNumeral(tonic, mode, prio[i]):
-            print(note[:-1], 'fits in ', prio[i])
-            curNumerals.append(prio[i]) #add to cur
-            print('NUMERALS:',curNumerals[::-1])
-
-        else:
-            print('continuing:', note[:-1], 'doesnt fit in ', prio[i])
-            continue #go next in priority list if current numeral not possible
-
-        #chord is available/possible at this point, already added to current
-        #check for imperfections with isGoodProgression, or just proceed if
-        #i is last in the priority list
-        #generateVoices generates the other three parts and returns true
-        #if there is a solution to the part writing - if false, this
-        #call of the function returns None
-        if voiceLeadingPossible(tonic, mode, parts, curNumerals, melody, allPossibleVoicings, lvMaxIntApart, length):
-            solution = genHarmonyRecursive(melody[:-1], tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length)
-
-            if solution != None:  
-                return solution
-        else:
-            #print(allPossibleVoicings[-1],'---',parts)
-            print('vl not possible')
-
-
-        curNumerals = copy.deepcopy(originalNumerals)
-        parts = copy.deepcopy(originalParts)
-        prio = copy.deepcopy(originalPrio)
-        allPossibleVoicings = copy.deepcopy(originalVoicings)
-        
-        print('------------\n','preserve original numerals:', curNumerals[::-1],'\nPARTS:',parts[::-1],'\n------------') 
-    return None
-
-#returns the least number of octaves than fit between n1 and n2
-def octavesApart(n1, n2):
-    #set n2 to be greater than n1
-    n1 = copy.copy(n1)
-    n2 = copy.copy(n2)
-    if compareNotes(n1, n2) == 1:
-        x = copy.copy(n1)
-        n1 = copy.copy(n2)
-        n2 = copy.copy(x)
-    octaves = -1
-    while compareNotes(n1, n2) <= 0:
-        n2[2] -= 1
-        octaves += 1
-    
-    return octaves
-    
-#returns the interval from n1 to n2, n1 IS THE FIRST NOTE
-def interval(n1, n2):
-
-    if n1 == n2:
-        return 'P1'
-    if compareNotes(n1, n2) != None and compareNotes(n1, n2) == 1:
-        x = copy.copy(n1)
-        n1 = copy.copy(n2)
-        n2 = copy.copy(x)
-
-    if len(n1) == 2 or len(n2) == 2:
-        octs = 0
-    else:
-        octs = octavesApart(n1 ,n2)
-    #if compareNotes(n1, n2) == None or compareNotes(n1, n2) <= 0:
-    scale = getScale(n1, "major")
-    for i in range(1, len(scale)):
-        if n2[0] == scale[i][0]:
-            if n2[1] == scale[i][1]:
-                if i == 4 or i == 5:
-                    return "P" + str(i + 7*octs)
-                if i == 1:
-                    return "P" + str(8 + 7*(octs-1))
-                
-                return "M" + str(i + 7*octs)
-            elif n2[1] == scale[i][1] - 1:
-                if i == 3 or i == 6 or i == 7:
-                    return "m" + str(i + 7*octs)
-                else:
-                    return "d" + str(i + 7*octs)
-            elif n2[1] == scale[i][1] + 1:
-                return "A" + str(i + 7*octs)
-
-#returns the input scale without accidental or register
-def toNoteScale(scale):
-    res = [None]
-    for i in range(1, len(scale)):
-        res.append(scale[i][0])
-    return res
 
 #gets a specified note with register from a chord given a starting note and a diretion/vector
 #input note MUST BE IN THE CHORD
@@ -442,15 +322,7 @@ def validAdjacentNotes(n1, n2):
                 return True
     return False
 
-#returns a list of the same notes with register removed, or a single note
-def removeRegister(notes):
-    if isinstance(notes[0], list):
-        res = []
-        for i in range(len(notes)):
-            res.append(notes[i][:-1])
-        return res
-    if isinstance(notes, list):
-        return notes[:-1]
+
 
 #destructively modifies the list of possible voicings,
 #eliminating illegal chords and prioritizing desirable chords
@@ -902,81 +774,6 @@ def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index, lvMaxInt
     allPossibleVoicings[index] = originalVoicings
     return getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index - 1, lvMaxIntApart)
 
-#copies L2 to L1
-def copyList(L1, L2):
-    for i in range(len(L2)):
-        if len(L1) < i + 1: L1.append(None)
-        L1[i] = copy.deepcopy(L2[i])
-    while len(L1) > len(L2):
-        L1.pop()
-#generates VL possibilities, returns false if there is no possible solution
-#in which case the algorithm backtracks
-#soprano is the melody note
-def voiceLeadingPossible(tonic, mode, parts, numerals, melody, allPossibleVoicings, lvMaxIntApart, length):
-    
-    numeral = copy.copy(numerals[-1])
-    chord = chordFromNumeral(tonic, mode, numeral)
-    soprano = copy.copy(melody[-1])
-    
-    #generate all the possible voicings for each individual chord
-    #push them onto a 3D list indexed by chords from right to left (0 is last chord),
-    #each element of the list being a list of possible voicings (chordal format)
-    #at the end, run a function that chooses one voicing from each list of possible voicings,
-    #with attention to voice leading rules as well as conventions and idioms.
-    #if no solution exists to satisfy voice leading rules, this function returns false
-
-    allPossibleVoicings.append(getPossibleVoicings(tonic, mode, numerals, soprano, parts))
-
-    #reduce first set of voicings to valid cadences
-    if len(allPossibleVoicings) < 2:
-        siftVoicings(tonic, mode, allPossibleVoicings[0], chord, numeral, parts)
-        cadences = getCadences(tonic, mode, allPossibleVoicings[0], numeral)
-        print('CADENCES: ', cadences)
-        allPossibleVoicings[0] = copy.deepcopy(cadences)
-        
-        parts.append(cadences[0])
-        return True
-    #checks if the newest set of possible voicings allows for legal voice leading
-    if len(allPossibleVoicings) == length:
-        cadences = getCadences(tonic, mode, allPossibleVoicings[-1], numeral)
-        print('cad',cadences)
-        allPossibleVoicings[-1] = copy.deepcopy(cadences)
-    solution = getVLPath(tonic, mode, numerals, copy.deepcopy(parts), copy.deepcopy(allPossibleVoicings), len(parts), lvMaxIntApart)
-    if solution == None: return False
-    copyList(parts, solution)
-    print('PARTS:', parts[::-1])
-    return True
-
-def parseToLilypond(parts):
-    res = ["","","",""] #four strings for four different parts, SATB
-    for voicing in parts:
-        for i in range(4):
-            res[i] += voicing[i][0].lower()
-            if voicing[i][1] >= 1:
-                accidental = "s"
-            elif voicing[i][1] <= -1:
-                print('here')
-                accidental = "f"
-            else:
-                accidental = ""
-            accidental *= abs(voicing[i][1])
-            res[i] += accidental
-            
-            regDiff = voicing[i][2] - 3
-            if regDiff > 0:
-      
-                registers = "'"*regDiff
-                # else:
-                #     registers = ","*regDiff
-            elif regDiff < 0:
-                registers = ","*abs(regDiff)
-                # else:
-                #     registers = "'"*regDiff
-            else:
-                registers = ""
-            res[i] += registers
-            res[i] += " "
-    return res
 
 
 #melody = [['G', 0, 5], ['B', 0, 5], ['C', 0, 6], ['A', 0, 5], ['B', 0, 5], ['G', 0, 5], ['A', 0, 5], ['F', 1, 5], ['G', 0, 5]]
