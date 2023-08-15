@@ -1,7 +1,11 @@
+#Forest Ma
+
+from scamp import *
 import abjad
 from harmony import *
 
-def parseToLilypond(parts):
+
+def parseToAbjad(parts):
     res = ["","","",""] #four strings for four different parts, SATB
     for voicing in parts:
         for i in range(4):
@@ -9,7 +13,6 @@ def parseToLilypond(parts):
             if voicing[i][1] >= 1:
                 accidental = "s"
             elif voicing[i][1] <= -1:
-                print('here')
                 accidental = "f"
             else:
                 accidental = ""
@@ -30,48 +33,113 @@ def parseToLilypond(parts):
             res[i] += " "
     return res
 
-#adapted from Abjad Documentation https://abjad.github.io/
-rh_voice_1 = abjad.Voice(name="RH_Voice1")
-rh_voice_2 = abjad.Voice(name="RH_Voice2")
-rh_staff = abjad.Staff([rh_voice_1], name="RH_Staff", simultaneous=True)
-rh_staff.extend([rh_voice_1, rh_voice_2])
-lh_voice_1 = abjad.Voice(name="LH_Voice_1")
-lh_voice_2 = abjad.Voice(name="LH_Voice_2")
-lh_staff = abjad.Staff(name="LH_Staff", simultaneous=True)
-lh_staff.extend([lh_voice_1, lh_voice_2])
-piano_staff = abjad.StaffGroup(lilypond_type="PianoStaff", name="Piano_Staff")
-piano_staff.extend([rh_staff, lh_staff])
-score = abjad.Score([piano_staff], name="Score")
+
+def run(tonic, mode, melody):
+    #adapted from Abjad Documentation https://abjad.github.io/
+    rh_voice_1 = abjad.Voice(name="RH_Voice1")
+    rh_voice_2 = abjad.Voice(name="RH_Voice2")
+    rh_staff = abjad.Staff([rh_voice_1], name="RH_Staff", simultaneous=True)
+    rh_staff.extend([rh_voice_1, rh_voice_2])
+    lh_voice_1 = abjad.Voice(name="LH_Voice_1")
+    lh_voice_2 = abjad.Voice(name="LH_Voice_2")
+    lh_staff = abjad.Staff(name="LH_Staff", simultaneous=True)
+    lh_staff.extend([lh_voice_1, lh_voice_2])
+    piano_staff = abjad.StaffGroup(lilypond_type="PianoStaff", name="Piano_Staff")
+    piano_staff.extend([rh_staff, lh_staff])
+    score = abjad.Score([piano_staff], name="Score")
 
 
-# parts = []
-# melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5]]
-parts = []
-#melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4],['C', 0, 5]]
-melody = [['D', 0, 4], ['A', 0, 4], ['F', 1, 4], ['E', 0, 4], ['F', 1, 4], ['G',1,4],['A', 0, 4], ['C', 1, 5],['D',0,5],['E',0,5]]
-melody = [['D', 0, 5],['G',1,5],['E',0,5]]
-parts = genHarmonyRecursive(melody, ['D', 0], "major", [], parts, [], 3, 3)
-parts = parts[::-1]
-print('asdf',parts)
-#fix parallel unisons
-parts = parseToLilypond(parts)
-print(parts)
-rh1 = r"\voiceOne " + parts[0]
-rh2 = r"\voiceTwo " + parts[1]
+    #generations that aren't desirable but still work
+    savedParts = []
+    parts = []
+    foundGoodProg = False
+    for i in range(5,6):
+        
+        harmony = genHarmonyRecursive(melody, tonic, mode, [], parts, [], [], i, len(melody))
+        if harmony == None:
+            if i == 5:
+                raise Exception('harmony generation failed')
+            else:
+                parts = []
+                continue
+        else:
+            
+            parts = harmony[0]
+            parts = parts[::-1]
+            numerals = harmony[1]
+            numerals = numerals[::-1]
+            if goodStartEnd(tonic, mode, parts, numerals):
+                foundGoodProg = True
+                print('good',numerals)
+                break
+            else:
+                savedParts.append(copy.deepcopy(parts))
+                parts = []
+                continue
 
-lh1 = r"\voiceOne " + parts[2]
-lh2 = r"\voiceTwo " + parts[3]
+    if not foundGoodProg:
+        parts = savedParts[0]
+
+    parsedParts = parseToAbjad(parts)
+
+    rh1 = r"\voiceOne " + parsedParts[0]
+    rh2 = r"\voiceTwo " + parsedParts[1]
+    lh1 = r"\voiceOne " + parsedParts[2]
+    lh2 = r"\voiceTwo " + parsedParts[3]
+
+    rh_voice_1.extend(rh1)
+    rh_voice_2.extend(rh2)
+    lh_voice_1.extend(lh1)
+    lh_voice_2.extend(lh2)
+    clef = abjad.Clef("bass")
+    note1 = abjad.select.note(lh_voice_1, 0)
+    abjad.attach(clef, note1)
+    note2 = abjad.select.note(lh_voice_2, 0)
+    abjad.attach(clef, note2)
+    abjad.show(score)
+    playback(parts)
 
 
+def playback(parts):
+    s = Session()
+    soprano = s.new_part("piano")
+    alto = s.new_part("piano")
+    tenor = s.new_part("piano")
+    bass = s.new_part("piano")
+    # soprano = s.new_part("violin")
+    # alto = s.new_part("violin")
+    # tenor = s.new_part("viola")
+    # bass = s.new_part("cello")
+    # soprano = s.new_part("organ")
+    # alto = s.new_part("organ")
+    # tenor = s.new_part("organ")
+    # bass = s.new_part("organ")
+    # soprano = s.new_part("voice")
+    # alto = s.new_part("voice")
+    # tenor = s.new_part("voice")
+    # bass = s.new_part("voice")
+    for i in range(len(parts)):
+        soprano.play_note(60 + halfSteps(['C',0,4],parts[i][0]),1.0,2,blocking=False)
+        alto.play_note(60 + halfSteps(['C',0,4],parts[i][1]),1.0,2,blocking=False)
+        tenor.play_note(60 + halfSteps(['C',0,4],parts[i][2]),1.0,2,blocking=False)
+        bass.play_note(60 + halfSteps(['C',0,4],parts[i][3]),1.0,2)
 
-
-rh_voice_1.extend(rh1)
-rh_voice_2.extend(rh2)
-lh_voice_1.extend(lh1)
-lh_voice_2.extend(lh2)
-clef = abjad.Clef("bass")
-note1 = abjad.select.note(lh_voice_1, 0)
-abjad.attach(clef, note1)
-note2 = abjad.select.note(lh_voice_2, 0)
-abjad.attach(clef, note2)
-abjad.show(score)
+melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5],['C', 0, 5], ['G', 0, 4], ['F', 1, 4], ['A', 0, 4], ['G', 0, 4],['B', 0, 4], ['C', 0, 5]]
+#melody = [['C', 1, 5], ['D', 0, 5] ,['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5]]#melody = [['C',1,5],['D',0,5],['F',1,4],['G',0,4],['D',0,5],['C',0,5]]
+#melody = [['E',0,5],['A',0,5],['D',0,5],['G',0,5],['E',0,5],['D',1,5],['E',0,5],['C',0,5],['D',0,5],['E',0,5]]
+#melody = [['C', 1, 5], ['D', 0, 5], ['F', 0,# 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4],['C', 0, 5]]
+#melody = [['D', 0, 4], ['E', 0, 4], ['F', 1, 4], ['G', 0, 4], ['A',0, 4], ['B',0,4],['C', 1, 5], ['D', 0, 5]]
+#melody = [['C', 0, 4],['E', 0, 4],['G', 0, 4],['F', 0, 4],['E', 0, 4],['F', 0, 4],['D', 0, 4],['E', 0, 4],['C', 0, 4],['D',0,4],['C',0,4]]
+melody = [['B',-1,4],['C',-1,5],['B',-1,4],['D',0,4],['E',-1,4],['G',-1,4],['F',0,4],['F',0,4],['E',-1,4]]
+#melody = [['E',-1,5],['D',-1,5],['C',-1,5],['A',0,4],['B',-1,4],['D',0,5],['E',-1,5]]
+#melody = [['G',0,4],['B',0,4],['C',0,5]]
+#melody = [['C', 0, 5], ['E', 0, 5], ['D', 0, 5],['C', 0, 5], ['D', 0, 5], ['E', 0, 5],['F',0,5],['D',0,5],['E',0,5]]
+#melody = [['C', 0, 5], ['G', 0, 4], ['F', 1, 4], ['A', 0, 4], ['G', 0, 4],['B', 0, 4], ['C', 0, 5]]
+#melody = [['D', 0, 5],['G',0,4],['E',0,4],['B',0,4]]
+#melody = [['F',0,4],['G',0,4],['C',0,4]]
+#melody = [['C',0,5]]
+run(['E',-1],"major",melody)
+# s = Session()
+# soprano = s.new_part("piano")
+# for i in range(60,100):
+#     soprano.play_note(i,1,.25)

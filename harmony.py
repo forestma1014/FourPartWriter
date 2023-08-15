@@ -2,9 +2,10 @@
 #Forest Ma
 #calculates four-part harmony given a melody from main.py
 
+import sys
 import copy
 import random
-from music import *
+from scale import *
 
 ###===========================================
 ###    STARTING POINT: genHarmonyRecursive
@@ -12,12 +13,11 @@ from music import *
 #recursively calculates roman numeral analysis and part writing simultaneously,
 #backtracking if their invalidities in either the RN analysis or the part writing
 #starting from the cadence (right to left)
-def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length):
+def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, cadences, lvMaxIntApart, length):
     
     if melody == []:
         print('done:',parts)
-        return parts
-
+        return [parts, curNumerals]
     note = melody[-1]
 
     if curNumerals == []:
@@ -31,20 +31,20 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
         prio = getPriorityList(curNumerals[-1], mode)
     originalPrio = copy.deepcopy(prio)
 
-    i = 0
-    term = len(prio)
-    while i < term:
-        if not isGoodProgression(curNumerals, prio[i], melody):
-            prio.append(prio.pop(i))
-            term -= 1
-        else:
-            i += 1
+    # i = 0
+    # term = len(prio)
+    # while i < term:
+    #     if not isGoodProgression(curNumerals, prio[i], melody, length):
+    #         prio.append(prio.pop(i))
+    #         term -= 1
+    #     else:
+    #         i += 1
+    siftPriorityList(tonic, mode, curNumerals, prio, melody, length)
     for i in range(len(prio)):
         originalNumerals = copy.deepcopy(curNumerals)
         originalParts = copy.deepcopy(parts)
         originalVoicings = copy.deepcopy(allPossibleVoicings)
         #check if numeral is possible given note
-        print(prio[i])
         if note[:-1] in chordFromNumeral(tonic, mode, prio[i]):
             print(note[:-1], 'fits in ', prio[i])
             curNumerals.append(prio[i]) #add to cur
@@ -60,8 +60,8 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
         #generateVoices generates the other three parts and returns true
         #if there is a solution to the part writing - if false, this
         #call of the function returns None
-        if voiceLeadingPossible(tonic, mode, parts, curNumerals, melody, allPossibleVoicings, lvMaxIntApart, length):
-            solution = genHarmonyRecursive(melody[:-1], tonic, mode, curNumerals, parts, allPossibleVoicings, lvMaxIntApart, length)
+        if voiceLeadingPossible(tonic, mode, parts, curNumerals, melody, allPossibleVoicings, cadences, lvMaxIntApart, length):
+            solution = genHarmonyRecursive(melody[:-1], tonic, mode, curNumerals, parts, allPossibleVoicings, cadences, lvMaxIntApart, length)
 
             if solution != None:  
                 return solution
@@ -78,6 +78,17 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
         print('------------\n','preserve original numerals:', curNumerals[::-1],'\nPARTS:',parts[::-1],'\n------------') 
     return None
 
+#called at the end of generation, returns True if the start and the cadence
+#are good progressions
+def goodStartEnd(tonic, mode, parts, numerals):
+    if numerals[0] == 'I':
+        if len(parts) == 1: return True
+        if (parts[1][0][:-1] in chordFromNumeral(tonic, mode, 'V7') and
+            numerals[1] not in ['V','V7']):
+            return False
+    return True
+
+
 # ====================================================#
 
 ###===========================================
@@ -86,7 +97,7 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
 #generates VL possibilities, returns false if there is no possible solution
 #in which case the algorithm backtracks
 #soprano is the melody note
-def voiceLeadingPossible(tonic, mode, parts, numerals, melody, allPossibleVoicings, lvMaxIntApart, length):
+def voiceLeadingPossible(tonic, mode, parts, numerals, melody, allPossibleVoicings, cadences, lvMaxIntApart, length):
     
     numeral = copy.copy(numerals[-1])
     chord = chordFromNumeral(tonic, mode, numeral)
@@ -102,25 +113,31 @@ def voiceLeadingPossible(tonic, mode, parts, numerals, melody, allPossibleVoicin
     allPossibleVoicings.append(getPossibleVoicings(tonic, mode, numerals, soprano, parts))
 
     #reduce first set of voicings to valid cadences
-    if len(allPossibleVoicings) < 2:
-        siftVoicings(tonic, mode, allPossibleVoicings[0], chord, numeral, parts)
-        cadences = getCadences(tonic, mode, allPossibleVoicings[0], numeral)
-        print('CADENCES: ', cadences)
+    if len(allPossibleVoicings) == 1:
+        siftVoicings(tonic, mode, allPossibleVoicings[0], chordFromNumeral(tonic,mode,numerals[0]), numerals[0], parts)
+        # cadences = getCadences(tonic, mode, allPossibleVoicings[0], numerals[0])
+        copyList(cadences, getCadences(tonic, mode, allPossibleVoicings[0], numerals[0]))
         allPossibleVoicings[0] = copy.deepcopy(cadences)
-        
-        parts.append(cadences[0])
-        return True
+        print('CADENCES: ', cadences)
+
+        # parts.append(cadences[0])
+        # return True
     #checks if the newest set of possible voicings allows for legal voice leading
-    if len(allPossibleVoicings) == length:
-        cadences = getCadences(tonic, mode, allPossibleVoicings[-1], numeral)
-        print('cad',cadences)
-        allPossibleVoicings[-1] = copy.deepcopy(cadences)
-    solution = getVLPath(tonic, mode, numerals, copy.deepcopy(parts), copy.deepcopy(allPossibleVoicings), len(parts), lvMaxIntApart)
-    if solution == None: return False
-    copyList(parts, solution)
-    print('PARTS:', parts[::-1])
-    return True
-    
+    if len(allPossibleVoicings) == length and length != 2:
+        start = getCadences(tonic, mode, allPossibleVoicings[-1], numeral)
+        print('cad',start)
+        allPossibleVoicings[-1] = copy.deepcopy(start)
+
+    originalVoicings = copy.deepcopy(allPossibleVoicings)
+    originalParts = copy.deepcopy(parts)
+    # print('calling vl path, index',len(parts), allPossibleVoicings[len(parts)])
+    solution = getVLPath(tonic, mode, numerals, parts, copy.deepcopy(allPossibleVoicings), originalVoicings, len(parts), lvMaxIntApart, length, 1)
+    if solution != None:
+        copyList(parts, solution)
+        #print('PARTS:', parts[::-1])
+        return True
+    return False
+
 #returns an array of notes (no register) pertaining to an input chord
 #output format: [['A', 0],['C', 0],['E', 0]]
 def chordFromNumeral(tonic, mode, numeral):
@@ -142,10 +159,22 @@ def chordFromNumeral(tonic, mode, numeral):
             return [scale[5]] + [scale[7]] + [scale[2]]
         elif numeral == 'vi':
             return [scale[6]] + [scale[1]] + [scale[3]]
-        elif numeral == 'viio':
-            return [scale[7]] + [scale[2]] + [scale[4]]
+
+        #7th chords
+        elif numeral == 'ii7':
+            return [scale[2]] + [scale[4]] + [scale[6]] + [scale[1]]
+        elif numeral == 'iio/7':
+            return [scale[2]] + [scale[4]] + [flatten(scale[6], 1)] + [scale[1]]
+        elif numeral == 'IV7':
+            return [scale[4]] + [scale[6]] + [scale[1]] + [scale[3]]
         elif numeral == 'V7':
             return [scale[5]] + [scale[7]] + [scale[2]] + [scale[4]]
+        elif numeral == 'viio7':
+            return [scale[7]] + [scale[2]] + [scale[4]] + [flatten(scale[6], 1)]
+        elif numeral == 'viio/7':
+            return [scale[7]] + [scale[2]] + [scale[4]] + [scale[6]]
+
+        #secondary chords
         elif numeral == 'V/V':
             return [scale[2]] + [sharpen(scale[4], 1)] + [scale[6]]
         elif numeral == 'V/vi':
@@ -164,6 +193,19 @@ def chordFromNumeral(tonic, mode, numeral):
             return [scale[6]] + [sharpen(scale[1], 1)] + [scale[3]] + [scale[5]]
         elif numeral == 'V7/iii':
             return [scale[7]] + [sharpen(scale[2], 1)] + [sharpen(scale[4], 1)] + [scale[6]]
+
+        #flat 6 chords
+        elif numeral == 'iv':
+           return [scale[4]] + [flatten(scale[6], 1)] + [scale[1]]
+        elif numeral == 'VI':
+            return [flatten(scale[6], 1)] + [scale[1]] + [flatten(scale[3], 1)]
+        elif numeral == 'Ge':
+            return [flatten(scale[6], 1)] + [scale[1]] + [flatten(scale[3], 1)] + [sharpen(scale[4], 1)]
+        elif numeral == 'Fr':
+            return [flatten(scale[6], 1)] + [scale[1]] + [scale[2]] + [sharpen(scale[4], 1)]
+        elif numeral == 'N':
+           return [flatten(scale[2], 1)] + [scale[4]] + [flatten(scale[6], 1)]
+
     else: #minor
         pass
     
@@ -171,80 +213,114 @@ def getPriorityList(numeral, mode): #numerals from right to left from cadence
     if mode == "major":
 
         if numeral == 'I':
-            return ['V','V7','IV','I','ii','vi']#allow ii, vi to precede a cadential 64
+            return ['V','V7','IV','IV7','I','ii','iio/7','iv','VI','ii7','vi','viio7','viio/7','N']
+            #allow ii, vi to precede a cadential 64
         elif numeral == 'ii':
-            return ['IV','vi','I','V7/ii','V/ii','ii']
+            return ['IV','IV7','vi','I','iv','V7/ii','V/ii','ii']
         elif numeral == 'iii':
-            return ['vi','I','IV','V7/iii','V/iii']
+            return ['vi','I','IV7','IV','V7/IV','V7/iii','V/iii','viio/7','iii']
         elif numeral == 'IV':
-            return ['I','vi','V7/IV','IV']
+            return ['I','vi','V7/IV','iii','IV7','IV']
         elif numeral == 'V':
-            return ['ii','IV','V7/V','V/V','I','V']
+            return ['ii','iio/7','ii7','IV','iv','Fr','Ge','N','V7/V','V/V','I','V']
         elif numeral == 'vi':
-            return ['V','iii','V7/vi','V/vi','I','vi']
+            return ['V7','iii','V7/vi','V/vi','I','V','vi']
 
-        #     return ['IV','vi','V/vi','V/V','iii']
-        # elif numeral == 'IV':
-        #     return ['V','ii','I','V/V','IV']
-        # elif numeral == 'V':
-        #     return ['I','vi','V7','V','V/vi']
-        # elif numeral == 'vi':
-        #     return ['IV','ii','V/V','V/vi','vi']
-
-
-        elif numeral == 'viio':
-            pass
+        #7th chords
         elif numeral == 'ii7':
-            pass
-        elif numeral == 'iii7':
-            pass
+            return ['IV','IV7','vi','I','ii']
+        elif numeral == 'iio/7':
+            return ['IV','IV7','VI','vi','I','ii']
         elif numeral == 'IV7':
-            pass
+            return ['iii','I','vi','V7/IV','IV','IV7']
         elif numeral == 'V7':
-            return ['ii','IV','V/V','I','vi','V']
-        elif numeral == 'vi7':
-            pass
+            return ['ii','iio/7','ii7','IV','iv','V/V','V7/V','I','vi','V','V7']
         elif numeral == 'viio7':
-            pass
+            return ['ii','IV','iio/7','ii7','IV','vi']
+        elif numeral == 'viio/7':
+            return ['ii','IV','iio/7','ii7','IV','vi']
+
+
+        #secondary chords
         elif numeral == 'V/ii' or numeral == 'V7/ii':
-            return ['I','vi','V','iii','ii','V/ii']
+            return ['I','vi','V','iii','ii','V/vi','V7/vi','V/ii']
         elif numeral == 'V/V' or numeral == 'V7/V':
-            return ['vi','IV','iii','I','V','V/V']
+            return ['ii','vi','IV','iii','I','V','V/ii','V7/ii','V/V']
         elif numeral == 'V/vi' or numeral == 'V7/vi':
-            return ['V','V7','iii','vi','V/vi']
+            return ['V','V7','iii','V/iii','V7/iii','vi','V/vi']
         elif numeral == 'V/iii' or numeral == 'V7/iii':
             return ['I','iii','vi','IV']
         elif numeral == 'V7/IV':
             return ['I','IV','V']
 
-        return
+        #flat 6 chords
+        elif numeral == 'iv':
+            return ['VI','vi','I','IV','V7/IV']
+        elif numeral == 'VI':
+            return ['I','V']
+        elif numeral == 'Ge':
+            return ['IV','vi','V','I','VI','iv']
+        elif numeral == 'Fr':
+            return ['IV','vi','V','I','VI','iv']
+        elif numeral == 'N':
+            return ['I','VI','V7/IV']
     if mode == "minor":
         raise Exception("unfinished")
     raise Exception("invalid mode")
 
 #checks for strength of progressions, duplicate sequences, etc
 #precondition: numerals is already a valid progression
-def isGoodProgression(numerals, next, melody): #right to left, starting from cadence
-    
-    numerals = copy.copy(numerals)
-    numerals.append(next)
-    if len(numerals) >= 3:
-        for i in range(len(numerals) - 2):
+def siftPriorityList(tonic, mode, numerals, prio, melody, length):
+
+    i = 0
+    numIndex = len(numerals)
+    term = len(prio)
+    boolBreak = False
+    while i < term:
+        numerals.append(prio[i])
+        if len(numerals) >= 3:
             #allow consecutive numerals but not 3 in a row
-            if numerals[i] == numerals[i+1] == numerals[i+2]:
-                return False
-    
-    if len(numerals) >= 4:
-        for i in range(len(numerals) - 3):
+            if numerals[numIndex] == numerals[numIndex-1] == numerals[numIndex-2]:
+                prio.append(prio.pop(i))
+                numerals.pop()
+                term -= 1
+                continue
+
+
+        
+        if len(numerals) >= 4:
+
             #don't allow consecutive progressions
-            if numerals[i:i+2] == numerals[i+2:i+4]:
-                return False
-    
+            if numerals[numIndex:numIndex-2] == numerals[numIndex-2:numIndex-4]:
+                prio.append(prio.pop(i))
+                numerals.pop()
+                term -= 1
+                continue
+                
+
+
+
+        i += 1
+        numerals.pop()
+
+    if len(numerals) == length - 2:
+        if melody[0][:-1] in chordFromNumeral(tonic, mode, 'I'):
+            if 'IV' in prio:
+                prio.pop(prio.index('IV'))
+                prio.insert(0,'IV')
+            if 'V' in prio:
+                prio.pop(prio.index('V'))
+                prio.insert(0,'V')
+            if 'vi' in prio:
+                prio.append(prio.pop(prio.index('vi')))
+            if 'iii' in prio:
+                prio.append(prio.pop(prio.index('iii')))
+    print('SIFTED PRIORITY: ',prio)
     # for i in range(len(numerals)):
     #     print(melody[len(melody)-i-1], numerals[i])
         #assert(melody[len(melody)-i-1] in chordFromNumeral(['C',0],'major',numerals[i]))
 
-    return True
+
 
 #returns the numeral of cadence or first chord, returns I or i if possible
 #takes in the melody note of cadence or first note
@@ -258,7 +334,6 @@ def getCadenceNumeral(tonic, mode, note, available):
         for numeral in ['I','V','IV','V/V','V/ii','V/vi','V/iii','V7/IV']:
             if (note[:-1] in chordFromNumeral(tonic, mode, numeral)
                 and numeral in available):
-                print('available',available)
                 return [numeral]
     
     return []
@@ -330,10 +405,10 @@ def validAdjacentNotes(n1, n2):
 def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
 
     #least desirable qualities are accounted for last, so they are at the end of the list
-
     root = chord[0]
     third = chord[1]
     fifth = chord[2]
+
     if mode == "major":
 
         i = 0
@@ -341,8 +416,9 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
         while i < term:
             
             voicing = copy.deepcopy(voicings[i])
-            if voicing == [['D', 0, 5], ['D', 0, 4], ['F', 0, 3], ['A', 0, 2]]:
-                print('HERE')
+            # if voicing == [['G', 0, 4], ['G', 0, 3], ['D', 0, 3], ['B', 0, 1]]:
+            #     raise Exception
+
             if len(parts) >= 1:
                 v2 = parts[-1]
             soprano = voicing[0]
@@ -353,6 +429,8 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
 
             #general rule across all inversions - can't double leading tone
             if isDoubled(voicing, getScale(tonic, "major")[7]):
+                if voicing == [['G', 0, 4], ['G', 0, 3], ['D', 0, 3], ['B', 0, 1]]:
+                    raise Exception
                 voicings.pop(i)
                 term -= 1
                 continue
@@ -368,9 +446,8 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
                 compareNotes(soprano, ['G',0,5]) <= 0):
                 voicings.pop(i)
                 term -= 1
-                print('hi')
                 continue
-
+            
             #first inversion rules
             if bass[:-1] == third:
                 #iii6 and vi6 don't exist
@@ -385,31 +462,12 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
                     voicings.pop(i)
                     term -= 1
                     continue
-
-            #if the bass is 2 octaves down from tenor (or more), push to back of list
-            if int(interval(voicing[2],voicing[3])[1:]) > 10:
-                voicings.append(voicings.pop(i))
-                term -= 1
-                continue
             
             #if the tenor is above E4, push to back of the list
             if compareNotes(tenor, ['E',0,4]) == 1:
                 voicings.append(voicings.pop(i))
                 term -= 1
                 continue
-
-
-            #don't let the bass deviate too much from the cadential position
-            #bass should always move
-            if len(parts) >= 1:
-                if int(interval(voicing[3], parts[0][3])[1:]) > 6:
-                    voicings.append(voicings.pop(i))
-                    term -= 1
-                    continue
-                if compareNotes(voicing[3], parts[-1][3]) == 0:
-                    voicings.append(voicings.pop(i))
-                    term -= 1
-                    continue
             
             #root position preferences
             if bass[:-1] == root:
@@ -441,6 +499,7 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
                 voicings.append(voicings.pop(i))
                 term -= 1
             i += 1
+        prioritizeInversions(tonic, mode, voicings, numeral)
     if mode == "minor":
         pass
 
@@ -448,27 +507,59 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
         #first inversion chords allowed: I, ii, IV, V
 
 
+
+    #bass preferences
+    i = 0
+    term = len(voicings)
+    while i < term:
+        voicing = copy.deepcopy(voicings[i])
+        #if the bass is a 12th down from tenor (or more), push to back of list
+        if int(interval(voicing[2],voicing[3])[1:]) >= 12:
+            voicings.append(voicings.pop(i))
+            term -= 1
+            continue
         
+        #don't let the bass deviate too much from the cadential position
+        #bass should always move
+        if len(parts) >= 1:
+            if int(interval(voicing[3], parts[0][3])[1:]) > 6:
+                voicings.append(voicings.pop(i))
+                term -= 1
+                continue
+            if compareNotes(voicing[3], parts[-1][3]) == 0:
+                voicings.append(voicings.pop(i))
+                term -= 1
+                continue
+        i += 1
     #this loop eliminates badly spaced chords, incomplete chords, and 
     #pushes chords with unisons to the back of the list
     #consistent with either mode
     i = 0
     term = len(voicings)
     while i < term:
-        boolBreak = False
         voicing = copy.deepcopy(voicings[i])
+        if len(parts) >= 1:
+            v2 = parts[-1]
+            soprano = voicing[0]
+            alto = voicing[1]
+            tenor = voicing[2]
+            bass = voicing[3]
+        boolBreak = False
         
         if not ((validAdjacentNotes(voicing[0], voicing[1]) and
                 validAdjacentNotes(voicing[1], voicing[2]) and
                 compareNotes(voicing[2], voicing[3]) >= 0)):
-            voicings.pop(i)
+
+            if voicings.pop(i) != voicing:
+                raise Exception
             term -= 1
             
             continue
         voicingNoRegister = removeRegister(voicing)
         for j in range(len(chord)):
             if chord[j] not in voicingNoRegister:
-                voicings.pop(i)
+                if voicings.pop(i) != voicing:
+                    raise Exception
                 boolBreak = True
                 term -= 1
                 break
@@ -480,6 +571,29 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
             #voicings.pop(i)
             term -= 1
             continue
+        soprano = voicing[0]
+        alto = voicing[1]
+        tenor = voicing[2]
+        bass = voicing[3]
+        #vocal ranges of SATB
+        if compareNotes(soprano, ['A',0,5]) == 1 or compareNotes(soprano, ['C',0,4]) == -1:
+            raise Exception('Melody range exceeded')
+        if compareNotes(alto, ['D',0,5]) == 1 or compareNotes(alto, ['F',0,3]) == -1:
+
+            print('alto range', voicing)
+            voicings.pop(i)
+            term -= 1
+            continue
+        if compareNotes(tenor, ['A',0,4]) == 1 or compareNotes(tenor, ['C',0,3]) == -1:
+            print('tenor range', voicing, tenor)
+            voicings.pop(i)
+            term -= 1
+            continue
+        if compareNotes(bass, ['E',0,4]) == 1 or compareNotes(bass, ['F',0,2]) == -1:
+            print('bass range', voicing)
+            voicings.pop(i)
+            term -= 1
+            continue
         i += 1
     print('SIFTED: ', voicings)
     
@@ -488,8 +602,8 @@ def getPossibleVoicings(tonic, mode, numerals, soprano, parts):
     possibleVoicings = []
     numeral = copy.copy(numerals[-1])
     chord = chordFromNumeral(tonic, mode, numeral)
-    if numeral == 'V7' or '/' in numeral:
-        for bassStepsBelowSoprano in [8,9,7,10,6,11,12]:
+    if '7' in numeral:
+        for bassStepsBelowSoprano in [8,9,7,10,6,11,5,4,12]:
 
             voicing = [soprano, None, None, None]
             bass = getChordalNote(soprano, chord, -bassStepsBelowSoprano)
@@ -537,8 +651,7 @@ def rootPosition(tonic, mode, voicing, numeral):
     return True
 def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
     if len(parts) == 0:
-        print(voicings)
-        return voicings[0]
+        return voicings
     n1 = numerals[len(parts)]
     c1 = chordFromNumeral(tonic, mode, n1)
     if len(parts) >= 1:
@@ -561,9 +674,9 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
         boolBreak = False
         for innerVoice in range(1,3):
             #check if any leaps in inner voices above lvMaxIntApart
-            if int(interval(v1[innerVoice], v2[innerVoice])[1]) > lvMaxIntApart:
-                print(interval(v1[innerVoice], v2[innerVoice]),'MAX LEAPS',innerVoice)
-
+            if int(interval(v1[innerVoice], v2[innerVoice])[1:]) > lvMaxIntApart:
+                #(v1[innerVoice], v2[innerVoice]),'MAX LEAPS',innerVoice)
+                #print('inner voices leap')
                 voicings.pop(i)
                 term -= 1
                 boolBreak = True
@@ -588,8 +701,9 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
         if int(interval(v1[3], v2[3])[1:]) > 8:
             voicings.pop(i)
             term -= 1
-            print('bass leap')
+            #print('bass leap')
             continue
+
         #7th of a chord must resolve down
         if '7' in n1:
             for j in range(4): 
@@ -599,7 +713,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
                             voicings.pop(i)
                             term -= 1
                             boolBreak = True
-                            print('7th resolve')
+                            #print('7th resolve')
                             break
             if boolBreak: continue
         #leading tone must resolve if in outer voices
@@ -611,56 +725,55 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
                 voicings.pop(i)
                 term -= 1
                 boolBreak = True
-                print('leading tone resolve')
+                #print('leading tone resolve')
                 break
-        if boolBreak: continue        
+        if boolBreak: continue   
 
-        #check for illegal 5ths and octaves
-        for m in range(3, 0, -1):
-            for n in range(m-1, -1, -1):
-                        
-                if (interval(v1[m], v1[n]) == 'P8' and interval(v2[m], v2[n]) == 'P8'
-                    and compareNotes(v1[m], v2[m]) != 0):
-                    print('parallel octaves',m,n, v1)
+        #do the same for secondary dominant chords    
+        if ('V/' in n1 and n1 != n2) or ('V7/' in n1 and n1 != n2): 
+            third = chordFromNumeral(tonic, mode, n1)[1]
+            for j in [0,3]:
+                if (v1[j][:-1] == third and steps(v1[j], v2[j]) != 2):
+                    voicings.pop(i)
+                    term -= 1
+                    boolBreak = True
+                    #print('leading tone resolve')
+                    break
+            if boolBreak: continue        
+
+
+
+        #voice overlap
+        for voice in range(4):
+            if voice != 0:
+                if compareNotes(v1[voice], v2[voice-1]) != compareNotes(v1[voice], v1[voice-1]):
                     voicings.pop(i)
                     term -= 1
                     boolBreak = True
                     break
-                if (interval(v1[m], v1[n]) in ['P5','d5'] and interval(v2[m], v2[n]) == 'P5'
-                    and compareNotes(v1[m], v2[m]) != 0):
-                    print('parallel fifths',m,n)
+            if voice != 3:
+                if compareNotes(v1[voice], v2[voice+1]) != compareNotes(v1[voice], v1[voice+1]):
                     voicings.pop(i)
                     term -= 1
                     boolBreak = True
                     break
-                if m == 3 and n == 0:
-
-                    if ((interval(v2[m], v2[n]) == 'P12' or interval(v2[m], v2[n]) == 'P19' or interval(v2[m], v2[n]) == 'P24' or interval(v2[m], v2[n]) == 'P5')
-                        and (compareNotes(v1[m], v2[m]) == compareNotes(v1[n], v2[n])) and
-                        compareNotes(v1[m], v2[m]) != 0 and int(interval(v1[n], v2[n])[1:]) >= 3):
-                        print('direct fifths', v1, v2)
-                        voicings.pop(i)
-                        term -= 1
-                        boolBreak = True
-                        break
-                    if ((interval(v2[m], v2[n]) == 'P8' or interval(v2[m], v2[n]) == 'P15' or interval(v2[m], v2[n]) == 'P22')
-                        and (compareNotes(v1[m], v2[m]) == compareNotes(v1[n], v2[n])) and
-                        compareNotes(v1[m], v2[m]) != 0 and int(interval(v1[n], v2[n])[1:]) >= 3):
-                        print('direct octaves', v1, v2)
-                        voicings.pop(i)
-                        term -= 1
-                        boolBreak = True
-                        break
-            if boolBreak: break
         if boolBreak: continue
+
         #cadencing convention, root position V - I PAC
         if len(parts) == 1:
             if n1 == 'V':
                 if (not(rootPosition(tonic, mode, parts[0], numerals[0]) 
                     and rootPosition(tonic, mode, v1, numerals[1]))):
+                    voicings.append(voicings.pop(i))
+                    term -= 1
+                    #('cadencing convention')
+                    continue
+        #first inversion rules
+        if len(parts) >= 1:
+            if v2[3][:-1] == chordFromNumeral(tonic, mode, n2)[1]:
+                if abs(steps(v1[3],v2[3])) != 2:
                     voicings.pop(i)
                     term -= 1
-                    print('cadencing convention')
                     continue
         #second inversion rules - passing, neighboring, cadential
         if v2[3][:-1] == chordFromNumeral(tonic, mode, n2)[2]:
@@ -675,7 +788,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
                             compareNotes(bass1, bass2) == compareNotes(bass2, bass3)))):
                         voicings.pop(i)
                         term -= 1
-                        print('invalid second inversion', v1)
+                        #print('invalid second inversion', v1)
                         continue
 
             # elif len(parts) >= 1:
@@ -687,25 +800,119 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
             #             continue
         
         #cadential 64
-        if len(parts) >= 2 and n2 == 'I' and n1 in ['ii','vi']:
-            if not (n3 in ['V','V7'] and v2[3][:-1] == v3[3][:-1] and 
-                v3[3][:-1] != chordFromNumeral(tonic, mode, n3)[2]):
+        if n2 == 'I' and n1 in ['ii','iio/7','VI','ii7','vi']:
+            if not len(parts) >= 2:
                 voicings.pop(i)
                 term -= 1
-                print('invalid cadential 64')
+                continue
+                #print('invalid cadential 64')
+            if (not (n3 in ['V','V7'] and v2[3][:-1] == v3[3][:-1] and 
+                v3[3][:-1] != chordFromNumeral(tonic, mode, n3)[2]) or
+                len(parts) <= 2):
+                voicings.pop(i)
+                term -= 1
+                #print('invalid cadential 64')
                 continue
       
         #7th chord rules
         if len(parts) >= 1 and '7' in n1:
-            if v1[3][:-1] == c1[3]:
-                if not (int(interval(v1[3], v2[3])[1:]) == 2 
-                    and compareNotes(v1[3],v2[3]) == -1):
+            if v1[3][:-1] == c1[3]: #V42
+                if steps(v1[3], v2[3]) != -2:
                     voicings.pop(i)
                     term -= 1
                     continue
+
             
+
+
+
+        i += 1
+
+    #Bass motion preferences
+    i = 0
+    term = len(voicings)
+    boolBreak = False
+    # don't allow the bass to repeat if it doesn't have to
+    while i < term:
+        v1 = copy.deepcopy(voicings[i])
+        if len(parts) >= 1:
+            if v1[3] == v2[3]:
+                voicings.append(voicings.pop(i))
+                term -= 1
+                continue
+
+        i += 1
+
+    i = 0
+    term = len(voicings)
+    while i < term:  
+        v1 = copy.deepcopy(voicings[i])
+        boolBreak = False    
+        #no augmented leaps
+        if len(parts) >= 1:
+            for voice in range(4):
+                if interval(v1[voice],v2[voice])[0] == 'A':
+                    voicings.pop(i)
+                    term =- 1
+                    boolBreak = True
+                    break
+        if boolBreak: continue
+        #check for illegal 5ths and octaves
+        for m in range(3, 0, -1):
+            for n in range(m-1, -1, -1):
+                if (trueInterval(interval(v1[m], v1[n])) == 'P1' 
+                    and trueInterval(interval(v2[m], v2[n])) == 'P1'
+                    and compareNotes(v1[m], v2[m]) != 0):
+                    print('parallel octaves',m,n, v1)
+                    voicings.pop(i)
+                    term -= 1
+                    boolBreak = True
+                    break
+                if (trueInterval(interval(v1[m], v1[n])) in ['P5','d5'] 
+                    and trueInterval(interval(v2[m], v2[n])) == 'P5'
+                    and compareNotes(v1[m], v2[m]) != 0):
+                    print('parallel fifths',v1,v2,m,n)
+                    voicings.pop(i)
+                    term -= 1
+                    boolBreak = True
+                    break
+                if m == 3 and n == 0:
+
+                    if (trueInterval(interval(v2[m], v2[n])) == 'P5' 
+                        and (compareNotes(v1[m], v2[m]) == compareNotes(v1[n], v2[n])) and
+                        compareNotes(v1[m], v2[m]) != 0 and int(interval(v1[n], v2[n])[1:]) >= 3):
+                        #print('direct fifths', v1, v2)
+                        voicings.pop(i)
+                        term -= 1
+                        boolBreak = True
+                        break
+                    if (trueInterval(interval(v2[m], v2[n])) == 'P1'
+                        and (compareNotes(v1[m], v2[m]) == compareNotes(v1[n], v2[n])) and
+                        compareNotes(v1[m], v2[m]) != 0 and int(interval(v1[n], v2[n])[1:]) >= 3):
+                        #print('direct octaves', v1, v2)
+                        voicings.pop(i)
+                        term -= 1
+                        boolBreak = True
+                        break
+            if boolBreak: break
+            if boolBreak: continue
         i += 1
     print('sifted VL: ',voicings)
+
+#prioritizes root position for I, IV, V chords after sift
+#pushes second inversion chords to the back
+def prioritizeInversions(tonic, mode, voicings, numeral):
+
+    if mode == "major":
+        i = 0
+        term = len(voicings)
+        while i < term:
+            v = copy.deepcopy(voicings[i])
+            if rootPosition(tonic, mode, v, numeral) and numeral in ['I','IV','V']:
+                voicings.insert(0,voicings.pop(i))
+                i += 1
+                continue
+            i += 1
 
 #returns whether or not a note is doubled in voicing
 def isDoubled(voicing, note):
@@ -718,9 +925,12 @@ def isDoubled(voicing, note):
     return False
 #returns a list of valid cadences, indexed by strength from left to right
 def getCadences(tonic, mode, voicings, numeral):
-    cadences = []
+    cadences = copy.deepcopy(voicings)
     soprano = voicings[0][0]
     chord = chordFromNumeral(tonic, mode, numeral)
+    root = chord[0]
+    third = chord[1]
+    fifth = chord[2]
     if numeral == 'I':
         root = copy.copy(tonic)
     elif numeral == 'V':
@@ -737,44 +947,94 @@ def getCadences(tonic, mode, voicings, numeral):
         root = getScale(tonic, mode)[7]
     elif numeral == 'V7/IV':
         root = getScale(tonic, mode)[1]
-    for i in range(len(voicings)):
-        #best case is root to be doubled, root position (PAC or IAC)
-        #if soprano is the root
-        scale = ['C','D','E','F','G','A','B']
-        if scale.index(soprano[0]) - scale.index(chord[0][0]) >= 0:
-            if (root == removeRegister(voicings[i])[3] and isDoubled(voicings[i], root)
-                and voicings[i][3][2] == voicings[i][0][2] - 2):
-                cadences.append(copy.deepcopy(voicings[i]))
-        else:
-            if (root == removeRegister(voicings[i])[3] and isDoubled(voicings[i], root)
-                and voicings[i][3][2] == voicings[i][0][2] - 3):
-                cadences.append(copy.deepcopy(voicings[i]))
 
+    i = 0
+    term = len(cadences)
+    while i < term:
+        v = copy.deepcopy(cadences[i])
+        #cannot cadence on a 64 chord
+        if not rootPosition(tonic, mode, v, numeral):
+            cadences.pop(i)
+            term -= 1
+            continue
+        i += 1
+    i = 0
+
+    term = len(cadences)
+    while i < term:
+        v = copy.deepcopy(cadences[i])
+        if int(interval(v[3],v[2])[1:]) == 10:
+            cadences.insert(0, cadences.pop(i))
+            i += 1
+            continue
+        i += 1
+    i = 0
+    term = len(cadences)
+    while i < term:
+        v = copy.deepcopy(cadences[i])
+        if int(interval(v[3],v[2])[1:]) == 5:
+            cadences.insert(0,cadences.pop(i))
+            i += 1
+            continue
+        i += 1
+    
+    #prioritize PAC
+    i = 0
+    term = len(cadences)
+    while i < term:
+        v = copy.deepcopy(cadences[i])
+        if not isDoubled(v, root):
+            cadences.append(cadences.pop(i))
+            term -= 1
+            continue
+        i += 1
+    
     return cadences
 
-#called when the current path is not a solution, starts from cadence
-#to find a new solution
-def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index, lvMaxIntApart):
-    if len(parts) == len(allPossibleVoicings[:index+1]):
+# def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, lvMaxIntApart, length):
+#     if len(parts) == length:
+#         return parts
+
+#     numeral = numerals[index]
+#     siftVoicings(tonic, mode, allPossibleVoicings[index], chordFromNumeral(tonic, mode, numeral), numeral, parts[:index])
+
+#     siftVoiceLeading(tonic, mode, allPossibleVoicings[index], numerals, parts[:index], lvMaxIntApart)
+
+def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, originalVoicings, index, lvMaxIntApart, length, depth):
+    
+    if depth == 500: return None
+    print('current index:', index)
+    if len(parts) == len(originalVoicings):
         return parts
-    originalVoicings = copy.deepcopy(allPossibleVoicings[index])
+
     numeral = numerals[index]
-    siftVoicings(tonic, mode, allPossibleVoicings[index], chordFromNumeral(tonic, mode, numeral), numerals, parts[:index])
-    print(index)
-    if allPossibleVoicings[0] == []: return None
+    siftVoicings(tonic, mode, allPossibleVoicings[index], chordFromNumeral(tonic, mode, numeral), numeral, parts[:index])
+
     siftVoiceLeading(tonic, mode, allPossibleVoicings[index], numerals, parts[:index], lvMaxIntApart)
-    for i in range(len(allPossibleVoicings[index])):
-        parts.append(copy.deepcopy(allPossibleVoicings[index][i]))
-        print('PASSED: ', parts[-1], i, len(allPossibleVoicings[index]))
-        return getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index + 1, lvMaxIntApart)
+  
+    if len(allPossibleVoicings[index]) > 0:
 
-    popped = parts.pop(-1)
+        parts.append(copy.deepcopy(allPossibleVoicings[index][0]))
+        print('PASSED: ', parts[-1], 'PARTS: ',parts[::-1])
+        #if parts[0] == [['E', -1, 5], ['G', 0, 4], ['B', -1, 3], ['E', -1, 3]]:
+        #print(allPossibleVoicings)
+        return getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, originalVoicings, index + 1, lvMaxIntApart, length, depth+1)
+    if len(parts) == 0:
+        return None
+    popped = parts.pop()
     print('POPPED: ', popped, 'PARTS:', parts[::-1])
+    asdf = copy.deepcopy(allPossibleVoicings[index-1])
+    #assert(popped in allPossibleVoicings[index-1])
     allPossibleVoicings[index-1].pop(allPossibleVoicings[index-1].index(popped))
-    allPossibleVoicings[index] = originalVoicings
-    return getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index - 1, lvMaxIntApart)
-
-
+    assert(len(allPossibleVoicings[index-1]) == len(asdf) - 1)
+    assert(popped not in allPossibleVoicings[index-1])
+    # if allPossibleVoicings[0] == []: 
+    #     return None
+    # if allPossibleVoicings[index-1] == []:
+    #     allPossibleVoicings[index-2].pop(allPossibleVoicings[index-1].index(parts.pop(-2)))
+    copyListFromIndex(allPossibleVoicings, copy.deepcopy(originalVoicings), index)
+    assert(allPossibleVoicings[index:] == originalVoicings[index:])
+    return getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, originalVoicings, index - 1, lvMaxIntApart, length, depth+1)
 
 #melody = [['G', 0, 5], ['B', 0, 5], ['C', 0, 6], ['A', 0, 5], ['B', 0, 5], ['G', 0, 5], ['A', 0, 5], ['F', 1, 5], ['G', 0, 5]]
 
@@ -808,5 +1068,8 @@ def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, index, lvMaxInt
 #siftVoicings(['C', 0], "major", [[['D', 0, 5], ['D', 0, 4], ['F', 0, 3], ['A', 0, 2]]],[['D', 0], ['F', 0], ['A', 0]], 'ii', [])
 #[['D', 0, 5], ['D', 0, 4], ['F', 0, 3], ['A', 0, 2]]
 
+# l = [[['C', 0, 4], ['C', 0, 4], ['C', 0, 4], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['G', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['E', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['C', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['E', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['C', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 2], ['C', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['C', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['G', 0, 2], ['C', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 2], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 3], ['C', 0, 3], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 3], ['G', 0, 2], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 3], ['E', 0, 2], ['C', 0, 2]], [['C', 0, 4], ['C', 0, 3], ['C', 0, 2], ['C', 0, 2]]]
+# print(len(l))
+# siftVoicings(['C',0],'major',l,chordFromNumeral(['C',0],'major','I'),'I',[[['B', 0, 4], ['G', 0, 4], ['F', 0, 4], ['D', 0, 3]], [['C', 0, 5], ['G', 0, 4], ['E', 0, 4], ['C', 0, 3]]])
 
-
+print(getCadences(['C',0,],"major",[[['C', 0, 4], ['G', 0, 3], ['E', 0, 3], ['C', 0, 3]], [['C', 0, 4], ['G', 0, 3], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['G', 0, 3], ['E', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 3], ['E', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['G', 0, 2], ['G', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['G', 0, 3], ['E', 0, 1]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 3], ['E', 0, 1]], [['C', 0, 4], ['C', 0, 4], ['E', 0, 3], ['G', 0, 1]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 3], ['G', 0, 1]]],'I'))
