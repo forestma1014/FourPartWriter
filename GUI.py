@@ -1,36 +1,73 @@
 #Forest Ma
 
+
 from scamp import *
 import abjad
 from harmony import *
+from NCTs import *
 
 
 def parseToAbjad(parts):
     res = ["","","",""] #four strings for four different parts, SATB
-    for voicing in parts:
+    for x in range(len(parts)):
+        voicing = parts[x]
+
+        
         for i in range(4):
-            res[i] += voicing[i][0].lower()
-            if voicing[i][1] >= 1:
-                accidental = "s"
-            elif voicing[i][1] <= -1:
-                accidental = "f"
+            if len(voicing) == 2 and voicing[0][i] != voicing[1][i]: #no NCTs
+                duration = '8'
             else:
-                accidental = ""
-            accidental *= abs(voicing[i][1])
-            res[i] += accidental
+                duration = '4'
+            if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
+                
+                for j in range(2):
+                    res[i] += voicing[j][i][0].lower()
+                    if voicing[j][i][1] >= 1:
+                        accidental = "s"
+                    elif voicing[j][i][1] <= -1:
+                        accidental = "f"
+                    else:
+                        accidental = ""
+                    accidental *= abs(voicing[j][i][1])
+                    res[i] += accidental
+                    
+                    regDiff = voicing[j][i][2] - 3
+                    if regDiff > 0:
             
-            regDiff = voicing[i][2] - 3
-            if regDiff > 0:
-      
-                registers = "'"*regDiff
+                        registers = "'"*regDiff
 
-            elif regDiff < 0:
-                registers = ","*abs(regDiff)
+                    elif regDiff < 0:
+                        registers = ","*abs(regDiff)
 
+                    else:
+                        registers = ""
+                    res[i] += registers
+                    res[i] += duration
+                    res[i] += " "
             else:
-                registers = ""
-            res[i] += registers
-            res[i] += " "
+                res[i] += voicing[0][i][0].lower()
+                if voicing[0][i][1] >= 1:
+                    accidental = "s"
+                elif voicing[0][i][1] <= -1:
+                    accidental = "f"
+                else:
+                    accidental = ""
+                accidental *= abs(voicing[0][i][1])
+                res[i] += accidental
+                
+                regDiff = voicing[0][i][2] - 3
+                if regDiff > 0:
+        
+                    registers = "'"*regDiff
+
+                elif regDiff < 0:
+                    registers = ","*abs(regDiff)
+
+                else:
+                    registers = ""
+                res[i] += registers
+                res[i] += duration
+                res[i] += " "
     return res
 
 
@@ -80,7 +117,11 @@ def run(tonic, mode, melody):
     if not foundGoodProg:
         parts = savedParts[0]
 
+    parts = genNonChordTones(tonic, mode, parts)
     parsedParts = parseToAbjad(parts)
+    # parsedParts = ["c8'' c8'' a' b' c'' ", "g' f8' f8' d' e' ", "e8' e8' c' g g ", 'c f g, c ']
+    # parsedParts = ["c''8 a'4 b' c'' ", "g' f' d' e' ", "e' c' g g ", 'c f g, c ']
+    print(parsedParts)
 
     rh1 = r"\voiceOne " + parsedParts[0]
     rh2 = r"\voiceTwo " + parsedParts[1]
@@ -106,6 +147,7 @@ def playback(parts):
     alto = s.new_part("piano")
     tenor = s.new_part("piano")
     bass = s.new_part("piano")
+    SATB = {soprano: 0, alto: 1, tenor: 2, bass: 3}
     # soprano = s.new_part("violin")
     # alto = s.new_part("violin")
     # tenor = s.new_part("viola")
@@ -119,10 +161,39 @@ def playback(parts):
     # tenor = s.new_part("voice")
     # bass = s.new_part("voice")
     for i in range(len(parts)):
-        soprano.play_note(60 + halfSteps(['C',0,4],parts[i][0]),1.0,2,blocking=False)
-        alto.play_note(60 + halfSteps(['C',0,4],parts[i][1]),1.0,2,blocking=False)
-        tenor.play_note(60 + halfSteps(['C',0,4],parts[i][2]),1.0,2,blocking=False)
-        bass.play_note(60 + halfSteps(['C',0,4],parts[i][3]),1.0,2)
+        voicing = parts[i]
+        # for voice in [soprano, alto, tenor, bass]:
+        #     if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
+        #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,1,blocking=False)
+        #         if voice == bass:
+        #             voice.play_note(60 + halfSteps(['C',0,4],parts[i][1][SATB.get(voice)]),1.0,1)
+        #         else:
+        #             voice.play_note(60 + halfSteps(['C',0,4],parts[i][1][SATB.get(voice)]),1.0,1,blocking=False)
+
+        #     else:
+        #         if voice == bass:
+        #             voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,2)
+        #         else:
+        #             voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,2,blocking=False)
+        # for voice in [soprano, alto, tenor, bass]:
+        #     if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
+        #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,1,blocking=True)
+        #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][1][SATB.get(voice)]),1.0,1,)
+        #         continue
+        #     if voice == bass:
+        #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,2)
+        #     else:
+        #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,2,blocking=False)
+        if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
+            alto.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(alto)]),1.0,1,blocking=False)
+            alto.play_note(60 + halfSteps(['C',0,4],parts[i][1][SATB.get(alto)]),1.0,1)
+        else:
+            alto.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(alto)]),1.0,2,blocking=False)
+        # #if 0 1 not the same, play half duration each
+        # soprano.play_note(60 + halfSteps(['C',0,4],parts[i][0]),1.0,2,blocking=False)
+        # alto.play_note(60 + halfSteps(['C',0,4],parts[i][1]),1.0,2,blocking=False)
+        # tenor.play_note(60 + halfSteps(['C',0,4],parts[i][2]),1.0,2,blocking=False)
+        # bass.play_note(60 + halfSteps(['C',0,4],parts[i][3]),1.0,2)
 
 melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5],['C', 0, 5], ['G', 0, 4], ['F', 1, 4], ['A', 0, 4], ['G', 0, 4],['B', 0, 4], ['C', 0, 5]]
 #melody = [['C', 1, 5], ['D', 0, 5] ,['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5]]#melody = [['C',1,5],['D',0,5],['F',1,4],['G',0,4],['D',0,5],['C',0,5]]
@@ -133,13 +204,14 @@ melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 
 melody = [['B',-1,4],['C',-1,5],['B',-1,4],['D',0,4],['E',-1,4],['G',-1,4],['F',0,4],['F',0,4],['E',-1,4]]
 #melody = [['E',-1,5],['D',-1,5],['C',-1,5],['A',0,4],['B',-1,4],['D',0,5],['E',-1,5]]
 #melody = [['G',0,4],['B',0,4],['C',0,5]]
-#melody = [['C', 0, 5], ['E', 0, 5], ['D', 0, 5],['C', 0, 5], ['D', 0, 5], ['E', 0, 5],['F',0,5],['D',0,5],['E',0,5]]
+melody = [['C', 0, 5], ['E', 0, 5], ['D', 0, 5],['C', 0, 5], ['D', 0, 5],['C',0,5]]
 #melody = [['C', 0, 5], ['G', 0, 4], ['F', 1, 4], ['A', 0, 4], ['G', 0, 4],['B', 0, 4], ['C', 0, 5]]
-#melody = [['D', 0, 5],['G',0,4],['E',0,4],['B',0,4]]
-#melody = [['F',0,4],['G',0,4],['C',0,4]]
+#melody = [['D', 0, 5],['G',0,4],['Eb,0,4],['B',0,4]]
+melody = [['C',0,5],['A',0,4],['B',0,4],['C',0,5]]
 #melody = [['C',0,5]]
-run(['E',-1],"major",melody)
+run(['C',0],"major",melody)
 # s = Session()
 # soprano = s.new_part("piano")
 # for i in range(60,100):
 #     soprano.play_note(i,1,.25)
+#print(trueInterval(interval(['G',0,2],['D',0,5])))

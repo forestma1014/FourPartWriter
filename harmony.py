@@ -16,7 +16,7 @@ from scale import *
 def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, cadences, lvMaxIntApart, length):
     
     if melody == []:
-        print('done:',parts)
+        print('done:',parts[::-1])
         return [parts, curNumerals]
     note = melody[-1]
 
@@ -338,53 +338,6 @@ def getCadenceNumeral(tonic, mode, note, available):
     
     return []
 
-#gets a specified note with register from a chord given a starting note and a diretion/vector
-#input note MUST BE IN THE CHORD
-def getChordalNote(note, chord, vector):
-    chord = copy.deepcopy(chord)
-    if note[:-1] not in chord: raise Exception("inputted note not in inputted chord")
-    if vector == 0:
-        return note
-
-    direction = int(vector/abs(vector))
-    resultNote = chord[(chord.index(note[:-1]) + vector)%(len(chord))]
-    octaveDiff = (abs(vector) // len(chord)) * direction
-
-    if interval(chord[0], chord[1]) == "M3":    
-        scale = toNoteScale(getScale(chord[0], "major"))[1:]
-    else:
-        scale = toNoteScale(getScale(chord[0], "minor"))[1:]
-    
-    #loop to see if there is a C in between the two notes, if so, register increments
-    if direction == 1:
-        i = scale.index(note[0]) + 1
-        if i == len(scale): i == 0
-        while i != scale.index(resultNote) + 1:
-            if scale[i][0] == 'C':
-                octaveDiff += direction
-                break
-            i += direction
-            if i == len(scale):
-                i = 0
-    else:
-        #print(note[:-1], '--',scale, '--',chord, vector)
-        i = scale.index(note[0])
-
-        if i == -1: i = len(scale) - 1
-        #print(resultNote, scale)
-        resultNoteIndex = scale.index(resultNote[0]) - 1
-
-        if resultNoteIndex == -1: resultNoteIndex = len(scale) - 1
-        while i != resultNoteIndex:
-            if scale[i][0] == 'B' and note[0] != 'B':
-                octaveDiff += direction
-                break
-            i += direction
-            if i == -1:
-                i = len(scale) - 1 
-    
-    resultNote.append(note[2] + octaveDiff)
-    return resultNote
 
 #helper to siftVoicings, returns true if n1 is a valid upper adjacent voice to n2
 def validAdjacentNotes(n1, n2):
@@ -437,13 +390,6 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
                 
             #cannot double the third of V/_ chords
             if 'V/' in numeral and isDoubled(voicing, third):
-                voicings.pop(i)
-                term -= 1
-                continue
-
-            #don't want tenor to be too high
-            if (compareNotes(tenor, ['G',0,4]) > 0 and 
-                compareNotes(soprano, ['G',0,5]) <= 0):
                 voicings.pop(i)
                 term -= 1
                 continue
@@ -589,7 +535,7 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
             voicings.pop(i)
             term -= 1
             continue
-        if compareNotes(bass, ['E',0,4]) == 1 or compareNotes(bass, ['F',0,2]) == -1:
+        if compareNotes(bass, ['E',0,4]) == 1:# or compareNotes(bass, ['F',0,2]) == -1:
             print('bass range', voicing)
             voicings.pop(i)
             term -= 1
@@ -670,6 +616,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
     smallestDist = 8
     while i < term:
         v1 = copy.deepcopy(voicings[i])
+        
         #pop voicings that violate max interval apart
         boolBreak = False
         for innerVoice in range(1,3):
@@ -846,6 +793,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
     i = 0
     term = len(voicings)
     while i < term:  
+    
         v1 = copy.deepcopy(voicings[i])
         boolBreak = False    
         #no augmented leaps
@@ -895,7 +843,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
                         boolBreak = True
                         break
             if boolBreak: break
-            if boolBreak: continue
+        if boolBreak: continue
         i += 1
     print('sifted VL: ',voicings)
 

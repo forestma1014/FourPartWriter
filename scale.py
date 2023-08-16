@@ -224,7 +224,7 @@ def copyListFromIndex(L1, L2, index):
     while len(L1) > len(L2):
         L1.pop()
 
-#returns the number of note steps from n1 to n2, negative if n2 < n1
+#returns the number of note steps from n1 to n2, negative if n2 > n1
 def steps(n1, n2):
 
     cmp = compareNotes(n1, n2)
@@ -314,9 +314,112 @@ def trueInterval(interval):
     steps = (int(steps)-1)%7 + 1
     return interval[0] + str(steps)
 
-print(trueInterval(interval(['A', 0, 4],['D', 0, 3])))
+#gets a specified note with register from a chord given a starting note and a diretion/vector
+#input note MUST BE IN THE CHORD
+def getChordalNote(note, chord, vector):
+    chord = copy.deepcopy(chord)
+    if note[:-1] not in chord: raise Exception("inputted note not in inputted chord")
+    if vector == 0:
+        return note
 
-if (trueInterval(interval(['D',0,3], ['A',0,4])) in ['P5','d5'] 
-    and trueInterval(interval(['E',0,3], ['B',0,4])) == 'P5'
-    and compareNotes(['D',0,3], ['A',0,4]) != 0):
-    print('br')
+    direction = int(vector/abs(vector))
+    resultNote = chord[(chord.index(note[:-1]) + vector)%(len(chord))]
+    octaveDiff = (abs(vector) // len(chord)) * direction
+
+    if interval(chord[0], chord[1]) == "M3":    
+        scale = toNoteScale(getScale(chord[0], "major"))[1:]
+    else:
+        scale = toNoteScale(getScale(chord[0], "minor"))[1:]
+    
+    #loop to see if there is a C in between the two notes, if so, register increments
+    if direction == 1:
+        i = scale.index(note[0]) + 1
+        if i == len(scale): i == 0
+        while i != scale.index(resultNote) + 1:
+            if scale[i][0] == 'C':
+                octaveDiff += direction
+                break
+            i += direction
+            if i == len(scale):
+                i = 0
+    else:
+        #print(note[:-1], '--',scale, '--',chord, vector)
+        i = scale.index(note[0])
+
+        if i == -1: i = len(scale) - 1
+        #print(resultNote, scale)
+        resultNoteIndex = scale.index(resultNote[0]) - 1
+
+        if resultNoteIndex == -1: resultNoteIndex = len(scale) - 1
+        while i != resultNoteIndex:
+            if scale[i][0] == 'B' and note[0] != 'B':
+                octaveDiff += direction
+                break
+            i += direction
+            if i == -1:
+                i = len(scale) - 1 
+    
+    resultNote.append(note[2] + octaveDiff)
+    return resultNote
+
+# #get
+# def getScaleNote(tonic, mode, note, vector):
+
+#     scale = getScale(tonic, mode)
+#     if vector == 0:
+#         return note
+
+#     direction = int(vector/abs(vector))
+#     resultNote = scale[(scale.index(note[:-1]) + vector)%(len(scale))]
+#     octaveDiff = (abs(vector) // len(scale)) * direction
+
+
+#     scale = toNoteScale(scale)[1:]
+#     print(scale)
+#     #loop to see if there is a C in between the two notes, if so, register increments
+#     if direction == 1:
+      
+#         i = scale.index(note[0]) + 1
+#         if i == len(scale): i == 0
+#         print(scale)
+#         while i != scale.index(resultNote[0]) + 1:
+#             if scale[i][0] == 'C':
+#                 octaveDiff += direction
+#                 break
+#             i += direction
+#             if i == len(scale):
+#                 i = 0
+           
+#     else:
+#         #print(note[:-1], '--',scale, '--',chord, vector)
+#         i = scale.index(note[0])
+
+#         if i == -1: i = len(scale) - 1
+#         #print(resultNote, scale)
+#         resultNoteIndex = scale.index(resultNote[0]) - 1
+
+#         if resultNoteIndex == -1: resultNoteIndex = len(scale) - 1
+#         while i != resultNoteIndex:
+#             if scale[i][0] == 'B' and note[0] != 'B':
+#                 octaveDiff += direction
+#                 break
+#             i += direction
+#             if i == -1:
+#                 i = len(scale) - 1 
+    
+#     resultNote.append(note[2] + octaveDiff)
+#     return resultNote
+def getScaleNote(tonic, mode, note, vector):
+
+    if vector == 0: return note
+    resultNote = copy.copy(note)
+    scale = toNoteScale(getScale(tonic, mode))[1:]
+    direction = vector//abs(vector)
+    for i in range(0,abs(vector)):
+        print(i)
+        initial = copy.copy(resultNote)
+        resultNote[0] = scale[(scale.index(resultNote[0])+direction)%7]
+        print(resultNote,compareNotes(initial, resultNote))
+        if compareNotes(initial, resultNote) == direction:
+            resultNote[2] += direction
+    return resultNote
