@@ -14,13 +14,14 @@ from scale import *
 #backtracking if their invalidities in either the RN analysis or the part writing
 #starting from the cadence (right to left)
 def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoicings, cadences, lvMaxIntApart, length):
-    
+    print(melody,tonic,mode)
     if melody == []:
         print('done:',parts[::-1])
         return [parts, curNumerals]
     note = melody[-1]
 
     if curNumerals == []:
+        print(tonic,mode,note)
         prio = getCadenceNumeral(tonic, mode, note, [])
 
     elif len(curNumerals) == length - 1:
@@ -30,6 +31,7 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
     else:
         prio = getPriorityList(curNumerals[-1], mode)
     originalPrio = copy.deepcopy(prio)
+    print('prio:',prio)
 
     # i = 0
     # term = len(prio)
@@ -271,12 +273,13 @@ def getPriorityList(numeral, mode): #numerals from right to left from cadence
 #checks for strength of progressions, duplicate sequences, etc
 #precondition: numerals is already a valid progression
 def siftPriorityList(tonic, mode, numerals, prio, melody, length):
-
+    print('Sp:',tonic, mode, melody)
     i = 0
     numIndex = len(numerals)
     term = len(prio)
     boolBreak = False
     while i < term:
+        print(i)
         numerals.append(prio[i])
         if len(numerals) >= 3:
             #allow consecutive numerals but not 3 in a row
@@ -1020,4 +1023,3 @@ def getVLPath(tonic, mode, numerals, parts, allPossibleVoicings, originalVoicing
 # print(len(l))
 # siftVoicings(['C',0],'major',l,chordFromNumeral(['C',0],'major','I'),'I',[[['B', 0, 4], ['G', 0, 4], ['F', 0, 4], ['D', 0, 3]], [['C', 0, 5], ['G', 0, 4], ['E', 0, 4], ['C', 0, 3]]])
 
-print(getCadences(['C',0,],"major",[[['C', 0, 4], ['G', 0, 3], ['E', 0, 3], ['C', 0, 3]], [['C', 0, 4], ['G', 0, 3], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['G', 0, 3], ['E', 0, 2]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 3], ['E', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 3], ['G', 0, 2]], [['C', 0, 4], ['E', 0, 3], ['G', 0, 2], ['G', 0, 2]], [['C', 0, 4], ['C', 0, 4], ['G', 0, 3], ['E', 0, 1]], [['C', 0, 4], ['G', 0, 3], ['G', 0, 3], ['E', 0, 1]], [['C', 0, 4], ['C', 0, 4], ['E', 0, 3], ['G', 0, 1]], [['C', 0, 4], ['E', 0, 3], ['E', 0, 3], ['G', 0, 1]]],'I'))

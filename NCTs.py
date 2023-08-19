@@ -33,7 +33,3 @@ def genAppoggiaturas(tonic, mode, partsNCT):
     pass
 def genSuspensions(tonic, mode, partsNCT):
     pass
-print(genNonChordTones(['C',0],"major",[[['C', 0, 5], ['G', 0, 4], ['E', 0, 4], ['C', 0, 3]], [['A', 0, 4], ['F', 0, 4], ['C', 0, 4], ['F', 0, 3]], [['B', 0, 4], ['D', 0, 4], ['G', 0, 3], ['G', 0, 2]], [['C', 0, 5], ['E', 0, 4], ['G', 0, 3], ['C', 0, 3]]]
-))
-    
-print(steps(['C',0,5],['E',0,5]))

@@ -175,7 +175,6 @@ def interval(n1, n2):
             elif n2[1] == scale[i][1] + 1:
                 return "A" + str(i + 7*octs)
 
-print(interval(['F',0,2],['B',0,2]))
 #returns the input scale without accidental or register
 def toNoteScale(scale):
     res = [None]
