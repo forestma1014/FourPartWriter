@@ -7,7 +7,7 @@ app = Flask(__name__)
 def index():
     if request.method == 'POST':
         key = request.form['key'].split(' ')
-        melody = request.form['melody'].split(' ')
+        melody = request.form['melody']
         
         print('KEY:',key)
         if key[0].upper() not in ['A','B','C','D','E','F','G']:
@@ -26,12 +26,19 @@ def index():
         else:
             accidental = -1
         
+        
         tonic = [key[0].upper(), accidental]
         mode = key[-1]
+        if not validMelody(melody):
+            return render_template('invalid.html')
+        melody = parseMelody(melody)
+        if melody == None:
+            print('none')
+            return render_template('invalid.html')
         print(tonic, mode, melody,'asdf')
         parts = run(tonic, mode, melody)
 
-        return render_template('result.html',parts)
+        return render_template('result.html',parts=parts)
     else:
         return render_template('index.html')
 

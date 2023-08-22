@@ -7,9 +7,10 @@
     <meta name="description" content="Four Part Writer">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="stylesheet" type="text/css" href="css/styles.css">
+    <link rel="stylesheet" type="text/css" href=" {{ url_for('static',filename='css/styles.css') }}">
     <title>Four Part Writer</title>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" integrity="sha512-jduERlz7En1IUZR54bqzpNI64AbffZWR//KJgF71SJ8D8/liKFZ+s1RxmUmB+bhCnIfzebdZsULwOrbVB5f3nQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 
 </head>
@@ -24,6 +25,173 @@
         <input type="text" name="melody">
         <input type="submit" value="submit">
     </form> -->
-    <h2>{{parts}}asdf</h2>
+    <h2>{{parts}}</h2>
+    <div id="test"></div>
+    <div id="output"></div>
+    <br><br><br>
+    <button id="playButton" onClick="playback()">Play</button>
+    <script>
+        var parsedParts = {{ parts|tojson }}
+        document.getElementById("test").innerHTML = 'asdf'
+        const { Factory, EasyScore, System } = Vex.Flow;
+        
+        const vf = new Factory({
+        renderer: { elementId: 'output', width: 500, height: 400 },
+        });
+        const score = vf.EasyScore();
+        var system = vf.System();
+
+        system.addStave({
+        voices: [
+            
+            score.voice(score.notes('c4/4, e4/4, g4/4, c5/4', {stem: 'up'})),
+            // score.voice(score.notes(parsedParts[1], {stem: 'down'}))
+        ]
+        }).addClef('treble');
+        system.addConnector('singleRight')
+        system.addConnector('singleLeft')
+
+        system = vf.System();
+        system.addStave({
+        voices: [
+            score.voice(score.notes('c4/4, e4/4, g4/4, c5/4 | d4/4', {stem: 'up'})),
+            // score.voice(score.notes(parsedParts[1], {stem: 'down'}))
+        ]
+        }).addClef('treble');
+        system.addConnector('singleRight')
+        alert('asdf')
+        // system.addStave({
+        // voices: [
+        //     score.voice(score.notes(parsedParts[2], {clef: 'bass', stem: 'up'})),
+        //     score.voice(score.notes(parsedParts[3], {clef: 'bass', stem: 'down'}))
+        // ]
+        // }).addClef('bass');
+
+        system.addConnector()
+
+    vf.draw()
+
+    // synth.triggerAttackRelease('c4', '4'+'n',4);
+
+    //document.getElementById("test").innerHTML = parsedParts;
+    // for (let i = 0; i < parsedParts[0].length; i++) {
+    //     for (let v = 0; v < 4; v++) {
+    //         note = parsedParts[v][i].slice(0, parsedParts[v][i].length - 2);
+    //         duration = parsedParts[v][i].slice(parsedParts[v][i].length - 1, parsedParts[v][i].length);
+    //         alert(note + duration);
+    //         synth1.triggerAttackRelease(note, duration+'n',i*0.5);
+    //     }
+
+
+    // }
+
+        // refreshes the page, resets Tone.js
+        function refresh() {
+            location.replace(window.location.href);
+            alert('asdf')
+        }
+
+        //parse from Vexflow notation to Tone.js sequence notation
+        function parseToTone(parts) {
+            var res = []
+            
+            for (i = 0; i < 4; i++) {
+                parts[i] = parts[i].split(',');
+                parts[i] = parts[i].slice(0,parts[i].length-1)
+
+            }
+            for (v = 0; v < 4; v++) {
+                
+                var curVoice = []
+                var i = 0
+                while (i < parts[v].length) {
+                    if (parts[v][i].charAt(parts[v][i].length - 1) == '8') {
+                        var eighths = []
+                        eighths[0] = parts[v][i].slice(0,parts[v][i].length-2)
+                        eighths[1] = parts[v][i+1].slice(0,parts[v][i+1].length-2)
+                        curVoice[curVoice.length] = eighths
+                        i++;
+                    }
+                    else {
+                        curVoice[curVoice.length] = parts[v][i].slice(0,parts[v][i].length-2)
+
+                    }
+                    i++;
+                }
+                res[v] = curVoice
+            }
+            return res
+
+        }
+        const parsedToTone = parseToTone(parsedParts)
+
+        function playback() {
+            // const synth = new Tone.Synth().toDestination();
+            // synth.triggerAttackRelease("C4",1,0,1);
+            document.getElementById("playButton").disabled = true;
+            Tone.Transport.stop()
+            const soprano = new Tone.Synth().toDestination();
+            const sopranoSeq = new Tone.Sequence((time, note) => {
+                soprano.triggerAttackRelease(note, 1, time);
+                // subdivisions are given as subarrays
+            }, parsedToTone[0]).start(0);
+            sopranoSeq.loop = false
+
+            const alto = new Tone.Synth().toDestination();
+            const altoSeq = new Tone.Sequence((time, note) => {
+                alto.triggerAttackRelease(note, 1, time);
+                // subdivisions are given as subarrays
+            }, parsedToTone[1]).start(0);
+            altoSeq.loop = false
+
+            const tenor = new Tone.Synth().toDestination();
+            const tenorSeq = new Tone.Sequence((time, note) => {
+                tenor.triggerAttackRelease(note, 1, time);
+                // subdivisions are given as subarrays
+            }, parsedToTone[2]).start(0);
+            tenorSeq.loop = false
+
+            const bass = new Tone.Synth().toDestination();
+            const bassSeq = new Tone.Sequence((time, note) => {
+                bass.triggerAttackRelease(note, 1, time);
+                // subdivisions are given as subarrays
+            }, parsedToTone[3]).start(0);
+            bassSeq.loop = false
+
+            const bass2 = new Tone.Synth().toDestination();
+            const bass2Seq = new Tone.Sequence((time, note) => {
+                bass2.triggerAttackRelease(note, 1, time);
+                // subdivisions are given as subarrays
+            }, parsedToTone[3]).start(0);
+            bass2Seq.loop = false
+
+            Tone.Transport.bpm.value = 30
+            soprano.volume.value = 0
+            alto.volume.value = -5
+            tenor.volume.value = 0
+            bass.volume.value = 0
+            bass2.volume.value = 0
+            Tone.Transport.start();
+            // setTimeout(refresh, 1000*parsedParts[0].length)
+            setTimeout(() => {
+                soprano.dispose()
+                alto.dispose()
+                tenor.dispose()
+                bass.dispose()
+                bass2.dispose()
+                Tone.Transport.stop()
+                document.getElementById("playButton").disabled = false;
+
+
+            }, 1000*parsedParts[0].length + 250);
+        }
+
+    function back() {
+        history.back()
+    }
+    </script><br><br>
+    <!-- <a href="{{ url_for('index') }}">Go back</a> -->
+    <button onclick="back()">Go back</button>
+
 </body>
 </html>

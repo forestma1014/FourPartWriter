@@ -525,7 +525,7 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
         tenor = voicing[2]
         bass = voicing[3]
         #vocal ranges of SATB
-        if compareNotes(soprano, ['A',0,5]) == 1 or compareNotes(soprano, ['C',0,4]) == -1:
+        if compareNotes(soprano, ['B',0,5]) == 1 or compareNotes(soprano, ['C',0,4]) == -1:
             raise Exception('Melody range exceeded')
         if compareNotes(alto, ['D',0,5]) == 1 or compareNotes(alto, ['F',0,3]) == -1:
 
@@ -849,7 +849,6 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
         if boolBreak: continue
         i += 1
     print('sifted VL: ',voicings)
-
 #prioritizes root position for I, IV, V chords after sift
 #pushes second inversion chords to the back
 def prioritizeInversions(tonic, mode, voicings, numeral):

@@ -1,7 +1,8 @@
 import copy
 from harmony import *
 from NCTs import *
-
+import abjad
+from scamp import *
 
 
 class Piece:
@@ -96,20 +97,64 @@ def parseToAbjad(parts):
                 res[i] += " "
     return res
 
+def parseToVexflow(parts):
+    res = ["","","",""] #four strings for four different parts, SATB
+    for x in range(len(parts)):
+        voicing = parts[x]
+
+        
+        for i in range(4):
+            if len(voicing) == 2 and voicing[0][i] != voicing[1][i]: #no NCTs
+                duration = '/8'
+            else:
+                duration = '/4'
+            if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
+                
+                for j in range(2):
+                    res[i] += voicing[j][i][0].lower()
+                    if voicing[j][i][1] >= 1:
+                        accidental = "#"
+                    elif voicing[j][i][1] <= -1:
+                        accidental = "b"
+                    else:
+                        accidental = ""
+                    accidental *= abs(voicing[j][i][1])
+
+                    res[i] += accidental
+                    register = str(voicing[j][i][2])
+                    res[i] += register
+                    res[i] += duration
+                    res[i] += ", "
+            else:
+                res[i] += voicing[0][i][0].lower()
+                if voicing[0][i][1] >= 1:
+                    accidental = "#"
+                elif voicing[0][i][1] <= -1:
+                    accidental = "b"
+                else:
+                    accidental = ""
+                accidental *= abs(voicing[0][i][1])
+
+                res[i] += accidental
+                register = str(voicing[0][i][2])
+                res[i] += register
+                res[i] += duration
+                res[i] += ", "
+    return res
 
 def run(tonic, mode, melody):
     #adapted from Abjad Documentation https://abjad.github.io/
-    # rh_voice_1 = abjad.Voice(name="RH_Voice1")
-    # rh_voice_2 = abjad.Voice(name="RH_Voice2")
-    # rh_staff = abjad.Staff([rh_voice_1], name="RH_Staff", simultaneous=True)
-    # rh_staff.extend([rh_voice_1, rh_voice_2])
-    # lh_voice_1 = abjad.Voice(name="LH_Voice_1")
-    # lh_voice_2 = abjad.Voice(name="LH_Voice_2")
-    # lh_staff = abjad.Staff(name="LH_Staff", simultaneous=True)
-    # lh_staff.extend([lh_voice_1, lh_voice_2])
-    # piano_staff = abjad.StaffGroup(lilypond_type="PianoStaff", name="Piano_Staff")
-    # piano_staff.extend([rh_staff, lh_staff])
-    # score = abjad.Score([piano_staff], name="Score")
+    rh_voice_1 = abjad.Voice(name="RH_Voice1")
+    rh_voice_2 = abjad.Voice(name="RH_Voice2")
+    rh_staff = abjad.Staff([rh_voice_1], name="RH_Staff", simultaneous=True)
+    rh_staff.extend([rh_voice_1, rh_voice_2])
+    lh_voice_1 = abjad.Voice(name="LH_Voice_1")
+    lh_voice_2 = abjad.Voice(name="LH_Voice_2")
+    lh_staff = abjad.Staff(name="LH_Staff", simultaneous=True)
+    lh_staff.extend([lh_voice_1, lh_voice_2])
+    piano_staff = abjad.StaffGroup(lilypond_type="PianoStaff", name="Piano_Staff")
+    piano_staff.extend([rh_staff, lh_staff])
+    score = abjad.Score([piano_staff], name="Score")
 
 
     #generations that aren't desirable but still work
@@ -143,7 +188,7 @@ def run(tonic, mode, melody):
         parts = savedParts[0]
 
     parts = genNonChordTones(tonic, mode, parts)
-    return parts
+    return parseToVexflow(parts)
     parsedParts = parseToAbjad(parts)
     # parsedParts = ["c8'' c8'' a' b' c'' ", "g' f8' f8' d' e' ", "e8' e8' c' g g ", 'c f g, c ']
     # parsedParts = ["c''8 a'4 b' c'' ", "g' f' d' e' ", "e' c' g g ", 'c f g, c ']
@@ -154,40 +199,40 @@ def run(tonic, mode, melody):
     lh1 = r"\voiceOne " + parsedParts[2]
     lh2 = r"\voiceTwo " + parsedParts[3]
 
-    # rh_voice_1.extend(rh1)
-    # rh_voice_2.extend(rh2)
-    # lh_voice_1.extend(lh1)
-    # lh_voice_2.extend(lh2)
-    # clef = abjad.Clef("bass")
-    # note1 = abjad.select.note(lh_voice_1, 0)
-    # abjad.attach(clef, note1)
-    # note2 = abjad.select.note(lh_voice_2, 0)
-    # abjad.attach(clef, note2)
-    # abjad.show(score)
-    # playback(parts)
+    rh_voice_1.extend(rh1)
+    rh_voice_2.extend(rh2)
+    lh_voice_1.extend(lh1)
+    lh_voice_2.extend(lh2)
+    clef = abjad.Clef("bass")
+    note1 = abjad.select.note(lh_voice_1, 0)
+    abjad.attach(clef, note1)
+    note2 = abjad.select.note(lh_voice_2, 0)
+    abjad.attach(clef, note2)
+    abjad.show(score)
+    playback(parts)
 
 
-# def playback(parts):
-#     s = Session()
-#     soprano = s.new_part("piano")
-#     alto = s.new_part("piano")
-#     tenor = s.new_part("piano")
-#     bass = s.new_part("piano")
-#     SATB = {soprano: 0, alto: 1, tenor: 2, bass: 3}
-#     # soprano = s.new_part("violin")
-#     # alto = s.new_part("violin")
-#     # tenor = s.new_part("viola")
-#     # bass = s.new_part("cello")
-#     # soprano = s.new_part("organ")
-#     # alto = s.new_part("organ")
-#     # tenor = s.new_part("organ")
-#     # bass = s.new_part("organ")
-#     # soprano = s.new_part("voice")
-#     # alto = s.new_part("voice")
-#     # tenor = s.new_part("voice")
-#     # bass = s.new_part("voice")
-#     for i in range(len(parts)):
-#         voicing = parts[i]
+def playback(parts):
+    s = Session()
+    soprano = s.new_part("piano")
+    alto = s.new_part("piano")
+    tenor = s.new_part("piano")
+    bass = s.new_part("piano")
+    SATB = {soprano: 0, alto: 1, tenor: 2, bass: 3}
+    # soprano = s.new_part("violin")
+    # alto = s.new_part("violin")
+    # tenor = s.new_part("viola")
+    # bass = s.new_part("cello")
+    # soprano = s.new_part("organ")
+    # alto = s.new_part("organ")
+    # tenor = s.new_part("organ")
+    # bass = s.new_part("organ")
+    # soprano = s.new_part("voice")
+    # alto = s.new_part("voice")
+    # tenor = s.new_part("voice")
+    # bass = s.new_part("voice")
+    for i in range(len(parts)):
+        voicing = parts[i]
 #         # for voice in [soprano, alto, tenor, bass]:
 #         #     if len(voicing) == 2 and voicing[0][i] != voicing[1][i]:
 #         #         voice.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(voice)]),1.0,1,blocking=False)
@@ -216,12 +261,59 @@ def run(tonic, mode, melody):
 #         else:
 #             alto.play_note(60 + halfSteps(['C',0,4],parts[i][0][SATB.get(alto)]),1.0,2,blocking=False)
 #         # #if 0 1 not the same, play half duration each
-#         # soprano.play_note(60 + halfSteps(['C',0,4],parts[i][0]),1.0,2,blocking=False)
-#         # alto.play_note(60 + halfSteps(['C',0,4],parts[i][1]),1.0,2,blocking=False)
-#         # tenor.play_note(60 + halfSteps(['C',0,4],parts[i][2]),1.0,2,blocking=False)
-#         # bass.play_note(60 + halfSteps(['C',0,4],parts[i][3]),1.0,2)
+        soprano.play_note(60 + halfSteps(['C',0,4],parts[i][0][0]),1.0,2,blocking=False)
+        alto.play_note(60 + halfSteps(['C',0,4],parts[i][0][1]),1.0,2,blocking=False)
+        tenor.play_note(60 + halfSteps(['C',0,4],parts[i][0][2]),1.0,2,blocking=False)
+        bass.play_note(60 + halfSteps(['C',0,4],parts[i][0][3]),1.0,2)
+
+#returns whether or not the user input melody is valid
+#only preliminarily checks for range based on register only
 def validMelody(melody):
+    melody = melody.split(' ')
+    print(melody)
+    for i in range(len(melody)):
+        if len(melody[i]) > 3 or len(melody[i]) < 2:
+            print('a')
+            return False
+        if melody[i][0].upper() not in ['A','B','C','D','E','F','G']:
+            print('b')
+
+            return False
+        if not melody[i][-1].isnumeric() or int(melody[i][-1]) < 4 or int(melody[i][-1]) > 5:
+            print('c')
+            return False
+        if len(melody[i]) == 3 and melody[i][1] not in ['#','b']:
+            print('d')
+            return False
     return True
+
+#parses the user input melody into a list for the code to process
+#if melody is out of range, returns None
+def parseMelody(melody):
+    melody = melody.split(' ')
+    print(melody)
+    res = []
+    for i in range(len(melody)):
+        note = []
+        note.append(melody[i][0].upper())
+        if melody[i][1] == '#':
+            note.append(1)
+        elif melody[i][1] == '##':
+            note.append(2)
+        elif melody[i][1] == 'b':
+            note.append(-1)
+        elif melody[i][1] == 'bb':
+            note.append(-2)
+        else:
+            assert(len(melody[i])==2)
+            note.append(0)
+        note.append(int(melody[i][-1]))
+        res.append(copy.copy(note))
+    for i in range(len(res)):
+        if compareNotes(res[i], ['B',0,5]) == 1 or compareNotes(res[i], ['C',0,4]) == -1:
+            print(res[i])
+            return None
+    return res
 
 # melody = [['C', 1, 5], ['D', 0, 5], ['F', 0, 5], ['E', 0, 5], ['A', 0, 5],['G', 0, 5], ['F', 0, 5], ['E', 0, 5], ['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5],['C', 0, 5], ['G', 0, 4], ['F', 1, 4], ['A', 0, 4], ['G', 0, 4],['B', 0, 4], ['C', 0, 5]]
 #melody = [['C', 1, 5], ['D', 0, 5] ,['D', 1, 5], ['E', 0, 5], ['C', 1, 5], ['D', 0, 5], ['C', 0, 5], ['B', 0, 4], ['C', 0, 5]]#melody = [['C',1,5],['D',0,5],['F',1,4],['G',0,4],['D',0,5],['C',0,5]]
@@ -237,7 +329,8 @@ def validMelody(melody):
 #melody = [['D', 0, 5],['G',0,4],['Eb,0,4],['B',0,4]]
 # melody = [['C',0,5],['A',0,4],['B',0,4],['C',0,5]]
 # #melody = [['C',0,5]]
-#run(['C',0],"major",melody)
+# melody = parseMelody('C4 Ab4 G4 F#4 G4 B4 C5 Ab4 G4 F#4 G4 B4 C5')
+# run(['C',0], 'major', melody)
 # s = Session()
 # soprano = s.new_part("piano")
 # for i in range(60,100):
