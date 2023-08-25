@@ -16,7 +16,7 @@
 </head>
 
 <body>
-    <h1>Four Part Writer</h1>
+    <h1 id="resultsH1">Four Part Writer</h1>
     <!-- <form action="#" method="post">
         <p>Key:</p>
         <input type="text" name="key">
@@ -25,73 +25,36 @@
         <input type="text" name="melody">
         <input type="submit" value="submit">
     </form> -->
-    <h2>{{parts}}</h2>
-    <div id="test"></div>
+    <h2></h2>
+
     <div id="output"></div>
     <br><br><br>
     <button id="playButton" onClick="playback()">Play</button>
     <script>
+
+        // retrieve harmony data
         var parsedParts = {{ parts|tojson }}
-        document.getElementById("test").innerHTML = 'asdf'
-        const { Factory, EasyScore, System } = Vex.Flow;
-        
-        const vf = new Factory({
-        renderer: { elementId: 'output', width: 500, height: 400 },
-        });
-        const score = vf.EasyScore();
-        var system = vf.System();
+        var tonic = {{ tonic|tojson }}
+        var mode = {{ mode|tojson }}
 
-        system.addStave({
-        voices: [
-            
-            score.voice(score.notes('c4/4, e4/4, g4/4, c5/4', {stem: 'up'})),
-            // score.voice(score.notes(parsedParts[1], {stem: 'down'}))
-        ]
-        }).addClef('treble');
-        system.addConnector('singleRight')
-        system.addConnector('singleLeft')
-
-        system = vf.System();
-        system.addStave({
-        voices: [
-            score.voice(score.notes('c4/4, e4/4, g4/4, c5/4 | d4/4', {stem: 'up'})),
-            // score.voice(score.notes(parsedParts[1], {stem: 'down'}))
-        ]
-        }).addClef('treble');
-        system.addConnector('singleRight')
-        alert('asdf')
-        // system.addStave({
-        // voices: [
-        //     score.voice(score.notes(parsedParts[2], {clef: 'bass', stem: 'up'})),
-        //     score.voice(score.notes(parsedParts[3], {clef: 'bass', stem: 'down'}))
-        // ]
-        // }).addClef('bass');
-
-        system.addConnector()
-
-    vf.draw()
-
-    // synth.triggerAttackRelease('c4', '4'+'n',4);
-
-    //document.getElementById("test").innerHTML = parsedParts;
-    // for (let i = 0; i < parsedParts[0].length; i++) {
-    //     for (let v = 0; v < 4; v++) {
-    //         note = parsedParts[v][i].slice(0, parsedParts[v][i].length - 2);
-    //         duration = parsedParts[v][i].slice(parsedParts[v][i].length - 1, parsedParts[v][i].length);
-    //         alert(note + duration);
-    //         synth1.triggerAttackRelease(note, duration+'n',i*0.5);
-    //     }
-
-
-    // }
-
-        // refreshes the page, resets Tone.js
-        function refresh() {
-            location.replace(window.location.href);
-            alert('asdf')
+        // returns key in vexflow format
+        function getKey() {
+            var key = tonic[0]
+            if (tonic[1] == 1) {
+                key = key.concat('#')
+            }
+            if (tonic[1] == -1) {
+                key = key.concat('b')
+            }
+            if (mode == 'minor') {
+                key = key.concat('m')
+            }
+            return key
         }
 
-        //parse from Vexflow notation to Tone.js sequence notation
+
+        // parse from Vexflow notation to Tone.js sequence notation
+        // will use this to get the length of the music in quarter notes
         function parseToTone(parts) {
             var res = []
             
@@ -124,10 +87,171 @@
 
         }
         const parsedToTone = parseToTone(parsedParts)
+        const quarterNotes = parsedToTone[0].length
+        // Vexflow Easyscore measures strictly fit no more than 4 quarter notes
+        var numMeasures = Math.ceil(parsedParts[0].length/4)
+        
+        
+        // set up Vexflow
+        const { Factory, EasyScore, System } = Vex.Flow;
+        const vf = new Factory({
+        renderer: { elementId: 'output', width: 300*numMeasures + 100, height: 400 },
+        });
+        const score = vf.EasyScore();
+        var system;
+        
 
+        // creates new measure of music
+        function makeSystem(xValue, widthValue) {
+            var system = vf.System({ x: xValue, width: widthValue});
+            return system;
+        }
+        //delete the beginning spaces of string
+        function deleteSpaces(part) {
+            var i = 0
+            while (i < part.length) {
+                if (part[i] != ' ') {
+       
+                    return part.slice(i, part.length)
+                }
+                i++
+            }
+        } 
+        // returns the four note (or less) measure for a given part from index 0
+        //part is in vexflow notation, comma delimited string
+        function getMeasure(part, clef) {
+            var i = 0
+            var commas = 0
+            var prevEighth = false
+            part = part.toString()
+
+            while (i < part.length) {
+                if (part[i] == ',') {
+                    if (part[i-1] == '8') {
+                        if (prevEighth == false){
+                            
+                            prevEighth = true
+                        }
+                        else {
+                            commas++
+                            prevEighth = false
+                        }
+                    }
+                    else {
+                        commas++
+                    }
+
+                    
+                }
+                if (commas == 4) {
+                    return part.slice(0,i)
+                }
+                i++
+            }
+            if (clef == 'treble') {
+                var rests = 'b4/4/r,'.repeat(3-commas)
+            }
+            else {
+                var rests = 'd3/4/r,'.repeat(3-commas)
+
+            }
+            
+            part = part.concat(',').concat(rests)
+            return part
+        } 
+        function spliceToNext(part) {
+            var beats = 0.0
+            var i = 0
+            while (i < part.length) {
+                
+                if (part[i].charAt(part[i].length - 1) == '8') {
+                    beats += 0.5
+                }
+                else {
+                    beats += 1
+                }
+                if (beats == 4) {
+                    return part.splice(i+1)
+                }
+                i++
+            }
+            return part
+        }
+        // runs upon page being loaded
+        (function generateSheetMusic() {
+            var i = 0
+            var formatter = new Vex.Flow.Formatter()
+            while (i < numMeasures) {
+                if (i == 0) {
+                    system = makeSystem(0, 400)
+                    var soprano = parsedParts[0]
+                    var alto = parsedParts[1]
+                    var tenor = parsedParts[2]
+                    var bass = parsedParts[3]
+                }
+                
+                else {
+                    system = makeSystem(300*i+100, 300)
+                }
+                
+                var sopranoBar = deleteSpaces(getMeasure(soprano, 'treble'))
+                var altoBar = deleteSpaces(getMeasure(alto, 'treble'))
+                var tenorBar = deleteSpaces(getMeasure(tenor, 'bass'))
+                var bassBar = deleteSpaces(getMeasure(bass, 'bass'))
+
+
+                // var v1 = score.voice(score.notes(sopranoBar, {stem: 'up'}))
+                // var v2 = score.voice(score.notes(altoBar, {stem: 'down'}))
+                // var v3 = score.voice(score.notes(tenorBar, {stem: 'up'}))
+                // var v4 = score.voice(score.notes(bassBar, {stem: 'down'}))
+                if (i == 0) {
+
+
+                    system.addStave({
+                    voices: [
+                        score.voice(score.notes(sopranoBar, {stem: 'up'})),
+                        score.voice(score.notes(altoBar, {stem: 'down'}))
+                    ]
+                    }).addClef('treble').addKeySignature(getKey()).setEndBarType(Vex.Flow.Barline.type.NONE);
+                    system.addStave({
+                    voices: [
+                        score.voice(score.notes(tenorBar, {clef: 'bass', stem: 'up'})),
+                        score.voice(score.notes(bassBar, {clef: 'bass', stem: 'down'}))
+                    ]
+                    }).addClef('bass').addKeySignature(getKey()).setEndBarType(Vex.Flow.Barline.type.NONE)
+                }   
+                else {
+
+                    system.addStave({
+                    voices: [
+                        score.voice(score.notes(sopranoBar, {stem: 'up'})),
+                        score.voice(score.notes(altoBar, {stem: 'down'}))
+                    ]
+                    }).setEndBarType(Vex.Flow.Barline.type.NONE);
+                
+                    system.addStave({
+                    voices: [
+                        score.voice(score.notes(tenorBar, {clef: 'bass', stem: 'up'})),
+                        score.voice(score.notes(bassBar, {clef: 'bass', stem: 'down'}))
+                    ]
+                    }).setEndBarType(Vex.Flow.Barline.type.NONE)
+                }
+
+                soprano = spliceToNext(soprano)
+                alto = spliceToNext(alto)
+                tenor = spliceToNext(tenor)
+                bass = spliceToNext(bass)
+                i++
+            }
+
+        })();
+
+
+        vf.draw()
+
+        
         function playback() {
-            // const synth = new Tone.Synth().toDestination();
-            // synth.triggerAttackRelease("C4",1,0,1);
+
             document.getElementById("playButton").disabled = true;
             Tone.Transport.stop()
             const soprano = new Tone.Synth().toDestination();
@@ -172,7 +296,8 @@
             bass.volume.value = 0
             bass2.volume.value = 0
             Tone.Transport.start();
-            // setTimeout(refresh, 1000*parsedParts[0].length)
+
+            // reset synths after playback, ready for next
             setTimeout(() => {
                 soprano.dispose()
                 alto.dispose()
@@ -183,7 +308,7 @@
                 document.getElementById("playButton").disabled = false;
 
 
-            }, 1000*parsedParts[0].length + 250);
+            }, 1000*quarterNotes + 250);
         }
 
     function back() {
@@ -191,7 +316,7 @@
     }
     </script><br><br>
     <!-- <a href="{{ url_for('index') }}">Go back</a> -->
-    <button onclick="back()">Go back</button>
+    <button id="resultsBackButton" onclick="back()">Go back</button>
 
 </body>
 </html>

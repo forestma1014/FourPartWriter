@@ -38,7 +38,7 @@ def index():
         print(tonic, mode, melody,'asdf')
         parts = run(tonic, mode, melody)
 
-        return render_template('result.html',parts=parts)
+        return render_template('result.html',parts=parts,tonic=tonic,mode=mode)
     else:
         return render_template('index.html')
 

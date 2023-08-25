@@ -187,7 +187,7 @@ def run(tonic, mode, melody):
     if not foundGoodProg:
         parts = savedParts[0]
 
-    parts = genNonChordTones(tonic, mode, parts)
+    parts = genNonChordTones(tonic, mode, parts, numerals)
     return parseToVexflow(parts)
     parsedParts = parseToAbjad(parts)
     # parsedParts = ["c8'' c8'' a' b' c'' ", "g' f8' f8' d' e' ", "e8' e8' c' g g ", 'c f g, c ']
@@ -272,7 +272,7 @@ def validMelody(melody):
     melody = melody.split(' ')
     print(melody)
     for i in range(len(melody)):
-        if len(melody[i]) > 3 or len(melody[i]) < 2:
+        if len(melody[i]) > 4 or len(melody[i]) < 2:
             print('a')
             return False
         if melody[i][0].upper() not in ['A','B','C','D','E','F','G']:
@@ -283,6 +283,9 @@ def validMelody(melody):
             print('c')
             return False
         if len(melody[i]) == 3 and melody[i][1] not in ['#','b']:
+            print('d')
+            return False
+        if len(melody[i]) == 4 and melody[i][1:-1] not in ['##','bb']:
             print('d')
             return False
     return True
@@ -296,13 +299,13 @@ def parseMelody(melody):
     for i in range(len(melody)):
         note = []
         note.append(melody[i][0].upper())
-        if melody[i][1] == '#':
+        if melody[i][1:-1] == '#':
             note.append(1)
-        elif melody[i][1] == '##':
+        elif melody[i][1:-1] == '##':
             note.append(2)
-        elif melody[i][1] == 'b':
+        elif melody[i][1:-1] == 'b':
             note.append(-1)
-        elif melody[i][1] == 'bb':
+        elif melody[i][1:-1] == 'bb':
             note.append(-2)
         else:
             assert(len(melody[i])==2)

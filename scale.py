@@ -13,54 +13,37 @@ import copy
 #returns a list of all the notes in a major or minor scale, first index being None
 #to conform to scale degree conventions
 def getScale(tonic, mode):
-    
-    CMajor = [('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7), ('A', 9), ('B', 11)] 
-                    #second part of tuple is distance in half step to next note
-    CMinor = [('C', 0), ('D', 2), ('E', 3), ('F', 5), ('G', 7), ('A', 8), ('B', 10)]     
 
-    if mode == "major":
-        CScale = CMajor
+    #dictionary of all the natural tonic scales
+    if mode == 'major':
+        naturalTonicScalesDict = {
+            'C':[None,['C',0],['D',0],['E',0],['F',0],['G',0],['A',0],['B',0]],
+            'D':[None,['D',0],['E',0],['F',1],['G',0],['A',0],['B',0],['C',1]],
+            'E':[None,['E',0],['F',1],['G',1],['A',0],['B',0],['C',1],['D',1]],
+            'F':[None,['F',0],['G',0],['A',0],['B',-1],['C',0],['D',0],['E',0]],
+            'G':[None,['G',0],['A',0],['B',0],['C',0],['D',0],['E',0],['F',1]],
+            'A':[None,['A',0],['B',0],['C',1],['D',0],['E',0],['F',1],['G',1]],
+            'B':[None,['B',0],['C',1],['D',1],['E',0],['F',1],['G',1],['A',1]],
+        }
     else:
-        CScale = CMinor
+        naturalTonicScalesDict = {
+            'C':[None,['C',0],['D',0],['E',-1],['F',0],['G',0],['A',-1],['B',1]],
+            'D':[None,['D',0],['E',0],['F',0],['G',0],['A',0],['B',-1],['C',0]],
+            'E':[None,['E',0],['F',1],['G',0],['A',0],['B',0],['C',0],['D',0]],
+            'F':[None,['F',0],['G',0],['A',-1],['B',-1],['C',0],['D',-1],['E',-1]],
+            'G':[None,['G',0],['A',0],['B',-1],['C',0],['D',0],['E',-1],['F',0]],
+            'A':[None,['A',0],['B',0],['C',0],['D',0],['E',0],['F',0],['G',0]],
+            'B':[None,['B',0],['C',1],['D',0],['E',0],['F',1],['G',0],['A',0]],
+        }
     
-    #Derive scales based off above scales in C
-    scaleArray = [['_',  0],['_',  0],['_',  0],['_',  0],['_',  0],['_',  0],['_',  0]]
-    scaleArray[0] = copy.copy(tonic)
-    notes = ['C','D','E','F','G','A','B']
-    offset = notes.index(tonic[0])
-
-    for i in range(0, 7):
-        if i + offset >= 7:
-            curNote = notes[(i + offset)%7]
-        else:
-            curNote = notes[i + offset]
-
-        #first set the note
-        scaleArray[i][0] = curNote
-
-        #then set the accidental
-        #half steps of the natural note from tonic
-        curHalfStepsFromTonic = CMajor[notes.index(curNote)][1] - (CMajor[offset][1] + tonic[1])
-
-        if curHalfStepsFromTonic < 0:
-            curHalfStepsFromTonic += 12 
-
-        #half steps from desired note to tonic
-        desiredHalfStepsFromTonic = CScale[i][1]
-        scaleArray[i][1] = desiredHalfStepsFromTonic - curHalfStepsFromTonic
-
-        #edge cases
-        if mode == "major" and scaleArray[i][1] < 0 and (i == 0 or i == 6) and tonic[1] != -1:
-            scaleArray[i][1] += 12
-        if mode == "minor" and scaleArray[i][1] >=10 and i == 6 and tonic[1] == -1:
-            scaleArray[i][1] -= 12
-        if mode == "minor" and scaleArray[i][1] < 0 and i == 0 and tonic[1] == 1:
-            scaleArray[i][1] += 12
-
+    naturalTonic = tonic[0] #the note letter without accidental
+    accidental = tonic[1]
+    naturalTonicScale = naturalTonicScalesDict.get(naturalTonic)
+    scale = copy.deepcopy(naturalTonicScale)
+    for i in range(1, len(naturalTonicScale)):
+        scale[i][1] += accidental
     
-    scaleArray.insert(0, None) #offset by 1 index to notation conventions (1 is unison)
-    return scaleArray
-
+    return scale
 
 def degreesToNotes(part, tonic, mode):
 
@@ -342,11 +325,9 @@ def getChordalNote(note, chord, vector):
             if i == len(scale):
                 i = 0
     else:
-        #print(note[:-1], '--',scale, '--',chord, vector)
         i = scale.index(note[0])
 
         if i == -1: i = len(scale) - 1
-        #print(resultNote, scale)
         resultNoteIndex = scale.index(resultNote[0]) - 1
 
         if resultNoteIndex == -1: resultNoteIndex = len(scale) - 1
@@ -408,17 +389,22 @@ def getChordalNote(note, chord, vector):
     
 #     resultNote.append(note[2] + octaveDiff)
 #     return resultNote
+print(interval(['B',-1,4],['C',1,5]))
 def getScaleNote(tonic, mode, note, vector):
 
     if vector == 0: return note
     resultNote = copy.copy(note)
-    scale = toNoteScale(getScale(tonic, mode))[1:]
+    noteScale = toNoteScale(getScale(tonic, mode))[1:]
+    scale = getScale(tonic, mode)[1:]
     direction = vector//abs(vector)
     for i in range(0,abs(vector)):
-        print(i)
         initial = copy.copy(resultNote)
-        resultNote[0] = scale[(scale.index(resultNote[0])+direction)%7]
-        print(resultNote,compareNotes(initial, resultNote))
+        resultNote[0] = noteScale[(noteScale.index(resultNote[0])+direction)%7]
+
+        resultNote[1] = scale[(noteScale.index(resultNote[0]))%7][1]
         if compareNotes(initial, resultNote) == direction:
             resultNote[2] += direction
+
     return resultNote
+
+# print(getScaleNote(['D',0],'major',['G',0,4], 6))

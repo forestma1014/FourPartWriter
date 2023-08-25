@@ -6,11 +6,33 @@
     display: block; 
     margin: 0 auto;
 }
+#resultsH1 {
+    position:fixed;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+}
+#playButton {
+    position:fixed;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    top:40em;
+}
+#resultsBackButton {
+    position:fixed;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    top:45em;
+}
 body {
     text-align:center;
 
 }
 
+#output {
+    position:relative;
+    top:10em;
+}
 script {
     
 }
