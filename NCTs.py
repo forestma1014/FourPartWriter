@@ -25,7 +25,7 @@ def genPassingTones(tonic, mode, partsNCT, numerals):
         hasPassingTone = False
         hasSuspension = False
         # numerals that we don't want passing tones from
-        if i != len(partsNCT) - 1 and numerals[i] not in ['iv','Ge','Fr','N'] and (i == 0 or numerals[i-1] not in ['Ge','Fr','N']) and numerals[i+1] not in ['Ge','Fr','N']:
+        if i != len(partsNCT) - 1 and numerals[i] in ['I','V','ii','IV','iii','vi','V7'] and (i == 0 or numerals[i-1] in ['I','V','ii','IV','iii','vi','V7']) and numerals[i+1] in ['I','V','ii','IV','iii','vi','V7']:
             nctChord = copy.deepcopy(partsNCT[i][0])
             v1 = copy.deepcopy(partsNCT[i][0]) #current voicing
             v2 = copy.deepcopy(partsNCT[i+1][0]) #adjacent voicing
@@ -41,7 +41,7 @@ def genPassingTones(tonic, mode, partsNCT, numerals):
             continue
 
         #suspensions
-        elif i != 0 and i != len(partsNCT) - 1 and numerals[i] not in ['iv','Ge','Fr','N'] and (i == 0 or numerals[i-1] not in ['Ge','Fr','N']) and numerals[i+1] not in ['Ge','Fr','N']:
+        elif i != 0 and i != len(partsNCT) - 1 and numerals[i] in ['I','V','ii','IV','iii','vi','V7'] and (i == 0 or numerals[i-1] in ['I','V','ii','IV','iii','vi','V7']) and numerals[i+1] in ['I','V','ii','IV','iii','vi','V7']:
             nctChord = copy.deepcopy(partsNCT[i][0])
             v1 = copy.deepcopy(partsNCT[i-1][0]) #current voicing
             v2 = copy.deepcopy(partsNCT[i][0]) #adjacent voicing

@@ -269,8 +269,8 @@ def playback(parts):
 #returns whether or not the user input melody is valid
 #only preliminarily checks for range based on register only
 def validMelody(melody):
-    melody = melody.split(' ')
-    print(melody)
+    melody = (melody.strip()).split(' ')
+
     for i in range(len(melody)):
         if len(melody[i]) > 4 or len(melody[i]) < 2:
             print('a')
@@ -293,8 +293,7 @@ def validMelody(melody):
 #parses the user input melody into a list for the code to process
 #if melody is out of range, returns None
 def parseMelody(melody):
-    melody = melody.split(' ')
-    print(melody)
+    melody = (melody.strip()).split(' ')
     res = []
     for i in range(len(melody)):
         note = []

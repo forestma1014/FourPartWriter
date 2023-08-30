@@ -17,6 +17,11 @@
 <body>
     <h1>Four Part Writer</h1>
     <h2>Your input was invalid.</h2>
-    <a href="{{ url_for('index') }}">Go back</a>
+    <script>
+        function back() {
+            history.back()
+        }
+    </script>
+    <button id="resultsBackButton" onclick="back()">Go back</button>
 </body>
 </html>

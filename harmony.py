@@ -33,14 +33,6 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
     originalPrio = copy.deepcopy(prio)
     # print('prio:',prio)
 
-    # i = 0
-    # term = len(prio)
-    # while i < term:
-    #     if not isGoodProgression(curNumerals, prio[i], melody, length):
-    #         prio.append(prio.pop(i))
-    #         term -= 1
-    #     else:
-    #         i += 1
     siftPriorityList(tonic, mode, curNumerals, prio, melody, length)
     for i in range(len(prio)):
         originalNumerals = copy.deepcopy(curNumerals)
@@ -69,7 +61,7 @@ def genHarmonyRecursive(melody, tonic, mode, curNumerals, parts, allPossibleVoic
                 return solution
         else:
             pass#print(allPossibleVoicings[-1],'---',parts)
-            # print('vl not possible')
+            print('vl not possible',curNumerals)
 
 
         curNumerals = copy.deepcopy(originalNumerals)
@@ -209,7 +201,66 @@ def chordFromNumeral(tonic, mode, numeral):
            return [flatten(scale[2], 1)] + [scale[4]] + [flatten(scale[6], 1)]
 
     else: #minor
-        pass
+        if numeral == 'i':
+            return [scale[1]] + [scale[3]] + [scale[5]]
+        # elif numeral == 'i':
+        #     return scale[1] + flatten(scale[3], 1) + scale[5]
+        elif numeral == 'iio':
+            return [scale[2]] + [scale[4]] + [scale[6]]
+        elif numeral == 'III':
+            return [scale[3]] + [scale[5]] + [scale[7]]
+        elif numeral == 'iv':
+            return [scale[4]] + [scale[6]] + [scale[1]]
+        elif numeral == 'V':
+            return [scale[5]] + [sharpen(scale[7], 1)] + [scale[2]]
+        elif numeral == 'VI':
+            return [scale[6]] + [scale[1]] + [scale[3]]
+
+        #7th chords
+        elif numeral == 'ii7':
+            return [scale[2]] + [scale[4]] + [scale[6]] + [scale[1]]
+        elif numeral == 'iio/7':
+            return [scale[2]] + [scale[4]] + [flatten(scale[6], 1)] + [scale[1]]
+        elif numeral == 'IV7':
+            return [scale[4]] + [scale[6]] + [scale[1]] + [scale[3]]
+        elif numeral == 'V7':
+            return [scale[5]] + [scale[7]] + [scale[2]] + [scale[4]]
+        elif numeral == 'viio7':
+            return [sharpen(scale[7], 1)] + [scale[2]] + [scale[4]] + [scale[6]]
+        # elif numeral == 'viio/7':
+        #     return [scale[7]] + [scale[2]] + [scale[4]] + [scale[6]]
+
+        #secondary chords
+        elif numeral == 'V/V':
+            return [scale[2]] + [sharpen(scale[4], 1)] + [scale[6]]
+        elif numeral == 'V/vi':
+            return [scale[3]] + [sharpen(scale[5], 1)] + [scale[7]]
+        elif numeral == 'V/ii':
+            return [scale[6]] + [sharpen(scale[1], 1)] + [scale[3]]
+        elif numeral == 'V/iii':
+            return [scale[7]] + [sharpen(scale[2], 1)] + [sharpen(scale[4], 1)]
+        elif numeral == 'V7/IV':
+            return [scale[1]] + [scale[3]] + [scale[5]] + [flatten(scale[7], 1)]
+        elif numeral == 'V7/V':
+            return [scale[2]] + [sharpen(scale[4], 1)] + [scale[6]] + [scale[1]]
+        elif numeral == 'V7/vi':
+            return [scale[3]] + [sharpen(scale[5], 1)] + [scale[7]] + [scale[2]]
+        elif numeral == 'V7/ii':
+            return [scale[6]] + [sharpen(scale[1], 1)] + [scale[3]] + [scale[5]]
+        elif numeral == 'V7/iii':
+            return [scale[7]] + [sharpen(scale[2], 1)] + [sharpen(scale[4], 1)] + [scale[6]]
+
+        #flat 6 chords
+        elif numeral == 'iv':
+           return [scale[4]] + [flatten(scale[6], 1)] + [scale[1]]
+        elif numeral == 'VI':
+            return [flatten(scale[6], 1)] + [scale[1]] + [flatten(scale[3], 1)]
+        elif numeral == 'Ge':
+            return [flatten(scale[6], 1)] + [scale[1]] + [flatten(scale[3], 1)] + [sharpen(scale[4], 1)]
+        elif numeral == 'Fr':
+            return [flatten(scale[6], 1)] + [scale[1]] + [scale[2]] + [sharpen(scale[4], 1)]
+        elif numeral == 'N':
+           return [flatten(scale[2], 1)] + [scale[4]] + [flatten(scale[6], 1)]
     
 def getPriorityList(numeral, mode): #numerals from right to left from cadence
     if mode == "major":
@@ -222,7 +273,7 @@ def getPriorityList(numeral, mode): #numerals from right to left from cadence
         elif numeral == 'iii':
             return ['vi','I','V7/IV','V7/iii','V/iii','viio/7','iii']
         elif numeral == 'IV':
-            return ['I','vi','V7/IV','iii','IV7','IV']
+            return ['I','vi','iii','IV7','IV','V7/IV']
         elif numeral == 'V':
             return ['ii','ii7','IV','iv','I','V7/V','V/V','V','iio/7','Fr','Ge','N']
         elif numeral == 'vi':
@@ -267,7 +318,30 @@ def getPriorityList(numeral, mode): #numerals from right to left from cadence
         elif numeral == 'N':
             return ['I','VI','V7/IV']
     if mode == "minor":
-        raise Exception("unfinished")
+        if numeral == 'i':
+            return ['V','V7','IV','IV7','I','ii','iio/7','iv','VI','ii7','vi','viio7','viio/7','N']
+            #allow ii, vi to precede a cadential 64
+        elif numeral == 'iio':
+            return ['IV','IV7','vi','I','iv','V7/ii','V/ii','ii']
+        elif numeral == 'III':
+            return ['vi','I','V7/IV','V7/iii','V/iii','viio/7','iii']
+        elif numeral == 'iv':
+            return ['I','vi','iii','IV7','IV','V7/IV']
+        elif numeral == 'V':
+            return ['ii','ii7','IV','iv','I','V7/V','V/V','V','iio/7','Fr','Ge','N']
+        elif numeral == 'VI':
+            return ['V7','iii','V7/vi','V/vi','I','V','vi']
+        #7th chords
+        elif numeral == 'iio7':
+            return ['IV','IV7','vi','I','ii']
+        elif numeral == 'iv7':
+            return ['iii','I','vi','V7/IV','IV','IV7']
+        elif numeral == 'V7':
+            return ['ii','iio/7','ii7','IV','iv','V/V','V7/V','I','vi','V','V7']
+        elif numeral == 'viio7':
+            return ['ii','IV','iio/7','ii7','IV','vi']
+        elif numeral == 'viio/7':
+            return ['ii','IV','iio/7','ii7','IV','vi']
     raise Exception("invalid mode")
 
 #checks for strength of progressions, duplicate sequences, etc
