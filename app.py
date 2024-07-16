@@ -28,7 +28,7 @@ def index():
         
         
         tonic = [key[0].upper(), accidental]
-        mode = key[-1]
+        mode = key[-1].lower()
         if not validMelody(melody):
             return render_template('invalid.html')
         melody = parseMelody(melody)

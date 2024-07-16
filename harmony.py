@@ -138,7 +138,7 @@ def chordFromNumeral(tonic, mode, numeral):
     scale = getScale(tonic, mode)
     
     #currently assuming input has no accidentals in major
-    if mode == "major":
+    if mode.lower() == "major":
         if numeral == 'I':
             return [scale[1]] + [scale[3]] + [scale[5]]
         # elif numeral == 'i':
@@ -263,7 +263,7 @@ def chordFromNumeral(tonic, mode, numeral):
            return [flatten(scale[2], 1)] + [scale[4]] + [flatten(scale[6], 1)]
     
 def getPriorityList(numeral, mode): #numerals from right to left from cadence
-    if mode == "major":
+    if mode.lower() == "major":
 
         if numeral == 'I':
             return ['V','V7','IV','IV7','I','ii','iio/7','iv','VI','ii7','vi','viio7','viio/7','N']
@@ -437,7 +437,7 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
     third = chord[1]
     fifth = chord[2]
 
-    if mode == "major":
+    if mode.lower() == "major":
 
         i = 0
         term = len(voicings)
@@ -950,7 +950,7 @@ def siftVoiceLeading(tonic, mode, voicings, numerals, parts, lvMaxIntApart):
 #pushes second inversion chords to the back
 def prioritizeInversions(tonic, mode, voicings, numeral):
 
-    if mode == "major":
+    if mode.lower() == "major":
         i = 0
         term = len(voicings)
         while i < term:

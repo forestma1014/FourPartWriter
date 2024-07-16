@@ -162,7 +162,7 @@ def run(tonic, mode, melody):
     parts = []
     foundGoodProg = False
     for i in range(5,6):
-        harmony = genHarmonyRecursive(melody, tonic, mode, [], parts, [], [], i, len(melody))
+        harmony = genHarmonyRecursive(melody, tonic, mode.lower(), [], parts, [], [], i, len(melody))
         if harmony == None:
             if i == 5:
                 raise Exception('harmony generation failed')
