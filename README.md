@@ -1,7 +1,7 @@
 Four Part Writer
 
 
-Go into this directory and run the following commands with python 3.11 installed:
+Go into this directory on the command line and run the following commands with python 3.11 installed:
 
 1. pip3.11 install -r requirements.txt
 
