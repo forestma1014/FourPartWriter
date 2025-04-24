@@ -1,11 +1,25 @@
 #piano {
     margin:auto;
     
-    width:75%;
+    width:60%;
 
     display: block; 
     margin: 0 auto;
 }
+
+#tempo {
+    width:2.75%;
+    position:absolute;
+    top:20%;
+    left: 47%;
+}
+
+#tempoNum {
+    position:absolute;
+    top:22.5%;
+    left: 49%;
+}
+
 #resultsH1 {
     position:fixed;
     left: 50%;

@@ -24,6 +24,9 @@
         <p>Please stay inside the soprano range given below</p>
         <input type="text" name="melody" style="width:1000px">
         <br><br>
+        <p>Tempo (quarter note BPM): </p>
+        <input type="number" name="tempo" style="width:200px">
+        <br><br>
         <input id="submitButton" type="submit" value="submit">
     </form>
     <img src="{{ url_for('static', filename='piano.png') }}" id="piano">

@@ -8,6 +8,9 @@ def index():
     if request.method == 'POST':
         key = request.form['key'].split(' ')
         melody = request.form['melody']
+        tempo = request.form['tempo']
+        if tempo == '':
+            tempo = 60
         
         print('KEY:',key)
         if key[0].upper() not in ['A','B','C','D','E','F','G']:
@@ -38,7 +41,7 @@ def index():
         print(tonic, mode, melody,'asdf')
         parts = run(tonic, mode, melody)
 
-        return render_template('result.html',parts=parts,tonic=tonic,mode=mode)
+        return render_template('result.html',parts=parts,tonic=tonic,mode=mode,tempo=tempo)
     else:
         return render_template('index.html')
 

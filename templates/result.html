@@ -26,7 +26,8 @@
         <input type="submit" value="submit">
     </form> -->
     <h2></h2>
-
+    <img src="{{ url_for('static', filename='tempo.png') }}" id="tempo">
+    <div id="tempoNum"></div>
     <div id="output"></div>
     <br><br><br>
     <button id="playButton" onClick="playback()">Play</button>
@@ -36,6 +37,9 @@
         var parsedParts = {{ parts|tojson }}
         var tonic = {{ tonic|tojson }}
         var mode = {{ mode|tojson }}
+        var tempo = {{ tempo|tojson }}
+
+        document.getElementById("tempoNum").textContent = "= " + tempo;
 
         // returns key in vexflow format
         function getKey() {
@@ -111,7 +115,6 @@
             var i = 0
             while (i < part.length) {
                 if (part[i] != ' ') {
-       
                     return part.slice(i, part.length)
                 }
                 i++
@@ -256,40 +259,40 @@
             Tone.Transport.stop()
             const soprano = new Tone.Synth().toDestination();
             const sopranoSeq = new Tone.Sequence((time, note) => {
-                soprano.triggerAttackRelease(note, 1, time);
+                soprano.triggerAttackRelease(note, 60/tempo, time);
                 // subdivisions are given as subarrays
             }, parsedToTone[0]).start(0);
             sopranoSeq.loop = false
 
             const alto = new Tone.Synth().toDestination();
             const altoSeq = new Tone.Sequence((time, note) => {
-                alto.triggerAttackRelease(note, 1, time);
+                alto.triggerAttackRelease(note, 60/tempo, time);
                 // subdivisions are given as subarrays
             }, parsedToTone[1]).start(0);
             altoSeq.loop = false
 
             const tenor = new Tone.Synth().toDestination();
             const tenorSeq = new Tone.Sequence((time, note) => {
-                tenor.triggerAttackRelease(note, 1, time);
+                tenor.triggerAttackRelease(note, 60/tempo, time);
                 // subdivisions are given as subarrays
             }, parsedToTone[2]).start(0);
             tenorSeq.loop = false
 
             const bass = new Tone.Synth().toDestination();
             const bassSeq = new Tone.Sequence((time, note) => {
-                bass.triggerAttackRelease(note, 1, time);
+                bass.triggerAttackRelease(note, 60/tempo, time);
                 // subdivisions are given as subarrays
             }, parsedToTone[3]).start(0);
             bassSeq.loop = false
 
             const bass2 = new Tone.Synth().toDestination();
             const bass2Seq = new Tone.Sequence((time, note) => {
-                bass2.triggerAttackRelease(note, 1, time);
+                bass2.triggerAttackRelease(note, 60/tempo, time);
                 // subdivisions are given as subarrays
             }, parsedToTone[3]).start(0);
             bass2Seq.loop = false
 
-            Tone.Transport.bpm.value = 30
+            Tone.Transport.bpm.value = tempo * 0.5
             soprano.volume.value = 0
             alto.volume.value = -5
             tenor.volume.value = 0
@@ -308,7 +311,7 @@
                 document.getElementById("playButton").disabled = false;
 
 
-            }, 1000*quarterNotes + 250);
+            }, 60/tempo*1000*quarterNotes + 250);
         }
 
     function back() {
