@@ -512,11 +512,6 @@ def siftVoicings(tonic, mode, voicings, chord, numeral, parts):
 
             #second inversion preferences
             elif bass[:-1] == fifth:
-
-                # if isDoubled(voicing, fifth):
-                #     voicings.insert(0, voicings.pop(i))
-                #     i += 1
-                #     continue
                 voicings.append(voicings.pop(i))
                 term -= 1
             i += 1
